@@ -89,12 +89,18 @@ fi
 # Get latest imprint release
 echo "Fetching latest imprint release..."
 LATEST_VERSION=$(curl -sL https://api.github.com/repos/$REPO/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-BINARY_NAME="imprint-${OS}-${ARCH}"
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/${LATEST_VERSION}/${BINARY_NAME}"
+TARBALL="imprint_${LATEST_VERSION}_${OS}_${ARCH}.tar.gz"
+DOWNLOAD_URL="https://github.com/$REPO/releases/download/${LATEST_VERSION}/${TARBALL}"
 
 echo "Downloading imprint ${LATEST_VERSION}..."
+TMP_DIR=$(mktemp -d)
+trap "rm -rf $TMP_DIR" EXIT
+
+curl -fsSL "$DOWNLOAD_URL" -o "$TMP_DIR/imprint.tar.gz"
+tar -xzf "$TMP_DIR/imprint.tar.gz" -C "$TMP_DIR"
+
 mkdir -p "$INSTALL_DIR"
-curl -fsSL "$DOWNLOAD_URL" -o "$INSTALL_DIR/imprint"
+mv "$TMP_DIR/imprint" "$INSTALL_DIR/imprint"
 chmod +x "$INSTALL_DIR/imprint"
 
 # Verify installation
