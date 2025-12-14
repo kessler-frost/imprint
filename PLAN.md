@@ -209,29 +209,16 @@ var keyMap = map[string]input.Key{
 
 ## MCP Configuration (Claude Code)
 
-Users add to `.mcp.json`:
+Add imprint as an MCP server using the `/mcp` command:
 
-```json
-{
-  "mcpServers": {
-    "imprint": {
-      "command": "imprint"
-    }
-  }
-}
+```
+/mcp add imprint -- imprint
 ```
 
 With custom terminal size:
 
-```json
-{
-  "mcpServers": {
-    "imprint": {
-      "command": "imprint",
-      "args": ["--rows", "30", "--cols", "120"]
-    }
-  }
-}
+```
+/mcp add imprint -- imprint --rows 30 --cols 120
 ```
 
 Then AI agents can use the terminal tools directly.

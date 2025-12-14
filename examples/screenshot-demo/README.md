@@ -39,16 +39,10 @@ go build -o screenshot-demo
 
 ## Testing with Imprint
 
-Configure imprint in your `.mcp.json`:
+Add imprint as an MCP server:
 
-```json
-{
-  "mcpServers": {
-    "imprint": {
-      "command": "imprint"
-    }
-  }
-}
+```
+/mcp add imprint -- imprint
 ```
 
 Then use Claude Code to interact with the demo:

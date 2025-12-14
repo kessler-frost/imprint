@@ -80,29 +80,16 @@ imprint --help
 
 ## MCP Server (Claude Code)
 
-Add to your `.mcp.json`:
+Add imprint as an MCP server using the `/mcp` command in Claude Code:
 
-```json
-{
-  "mcpServers": {
-    "imprint": {
-      "command": "imprint"
-    }
-  }
-}
+```
+/mcp add imprint -- imprint
 ```
 
 With custom terminal size:
 
-```json
-{
-  "mcpServers": {
-    "imprint": {
-      "command": "imprint",
-      "args": ["--rows", "30", "--cols", "120"]
-    }
-  }
-}
+```
+/mcp add imprint -- imprint --rows 30 --cols 120
 ```
 
 ### Available Tools
