@@ -1,7 +1,7 @@
 # Imprint
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/kessler-frost/imprint.svg)](https://pkg.go.dev/github.com/kessler-frost/imprint)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kessler-frost/imprint)](https://goreportcard.com/report/github.com/kessler-frost/imprint)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kessler-frost/imprint?style=flat)](https://goreportcard.com/report/github.com/kessler-frost/imprint)
 [![License](https://img.shields.io/github/license/kessler-frost/imprint)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/kessler-frost/imprint)](https://github.com/kessler-frost/imprint/releases)
 
