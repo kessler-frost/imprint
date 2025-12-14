@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"github.com/kessler-frost/imprint/internal/mcp"
@@ -21,11 +24,25 @@ func main() {
 	rows := flag.Int("rows", 24, "Terminal rows")
 	cols := flag.Int("cols", 80, "Terminal columns")
 	version := flag.Bool("version", false, "Print version and exit")
+	daemon := flag.Bool("daemon", false, "Run in background (writes PID to ~/.imprint.pid)")
+	stop := flag.Bool("stop", false, "Stop a running daemon")
 	flag.Parse()
 
 	if *version {
 		fmt.Printf("imprint version %s\n", Version)
 		os.Exit(0)
+	}
+
+	pidFile := getPidFilePath()
+
+	if *stop {
+		stopDaemon(pidFile)
+		return
+	}
+
+	if *daemon {
+		startDaemon(pidFile)
+		return
 	}
 
 	// Create terminal
@@ -74,4 +91,87 @@ func getDefaultShell() string {
 		return "/bin/bash"
 	}
 	return shell
+}
+
+func getPidFilePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "/tmp/imprint.pid"
+	}
+	return filepath.Join(home, ".imprint.pid")
+}
+
+func startDaemon(pidFile string) {
+	// Check if already running
+	if pid, err := readPidFile(pidFile); err == nil {
+		if processExists(pid) {
+			fmt.Printf("Imprint is already running (PID %d)\n", pid)
+			os.Exit(1)
+		}
+	}
+
+	// Re-exec without -daemon flag
+	args := []string{}
+	for _, arg := range os.Args[1:] {
+		if arg != "-daemon" && arg != "--daemon" {
+			args = append(args, arg)
+		}
+	}
+
+	cmd := exec.Command(os.Args[0], args...)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.Stdin = nil
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+	if err := cmd.Start(); err != nil {
+		log.Fatalf("Failed to start daemon: %v", err)
+	}
+
+	// Write PID file
+	if err := os.WriteFile(pidFile, []byte(strconv.Itoa(cmd.Process.Pid)), 0644); err != nil {
+		log.Printf("Warning: failed to write PID file: %v", err)
+	}
+
+	fmt.Printf("Imprint started in background (PID %d)\n", cmd.Process.Pid)
+}
+
+func stopDaemon(pidFile string) {
+	pid, err := readPidFile(pidFile)
+	if err != nil {
+		fmt.Println("Imprint is not running (no PID file)")
+		return
+	}
+
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		fmt.Printf("Process %d not found\n", pid)
+		os.Remove(pidFile)
+		return
+	}
+
+	if err := process.Signal(syscall.SIGTERM); err != nil {
+		fmt.Printf("Failed to stop process: %v\n", err)
+		return
+	}
+
+	os.Remove(pidFile)
+	fmt.Printf("Imprint stopped (PID %d)\n", pid)
+}
+
+func readPidFile(pidFile string) (int, error) {
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(string(data))
+}
+
+func processExists(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	// On Unix, FindProcess always succeeds; send signal 0 to check if process exists
+	return process.Signal(syscall.Signal(0)) == nil
 }
