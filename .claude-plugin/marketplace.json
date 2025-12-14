@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "imprint-hooks",
-      "source": "./imprint-hooks",
+      "source": "./.claude-plugin/imprint-hooks",
       "description": "Setup hookify rules for imprint project build automation",
       "version": "1.0.0"
     }
