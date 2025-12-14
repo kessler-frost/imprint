@@ -1,4 +1,4 @@
-# Bubbletea Visual Demo
+# Screenshot Demo
 
 This demo showcases visual elements that can **only be verified via screenshot analysis**, not text inspection. It's designed to test Imprint's screenshot capabilities.
 

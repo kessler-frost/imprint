@@ -130,15 +130,15 @@ Add to your `.mcp.json`:
 
 The `examples/` directory contains demo applications for testing imprint:
 
-### bubbletea-demo (Visual)
+### screenshot-demo
 A Bubble Tea TUI with **visual elements that require screenshot analysis**:
 - **Random colors**: Colored squares randomly selected at startup - text extraction shows `████` but screenshot reveals actual colors
 - **Visual bugs**: Intentional rendering issues (misaligned title, color bleed, poor contrast) that are only detectable via screenshot
 
 This demonstrates why `get_screenshot` is valuable - some things can only be verified by actually *seeing* the terminal.
 
-### bubbletea-demo-text (Text-Only)
-The original text-based demo using simple ASCII characters. Good for testing `get_screen_text` and basic keyboard navigation.
+### text-demo
+A simple text-based TUI using ASCII characters. Good for testing `get_screen_text` and basic keyboard navigation.
 
 ## Architecture
 

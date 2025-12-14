@@ -1,6 +1,6 @@
-# Bubble Tea Demo (Text-Only Version)
+# Text Demo
 
-A minimal [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI for testing imprint's terminal control using text-based screen capture.
+A minimal [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI for testing imprint's `get_screen_text` endpoint.
 
 ## Build
 
