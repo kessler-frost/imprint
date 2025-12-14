@@ -1,0 +1,41 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 6 AM UTC daily
+  workflow_dispatch:  # Manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes since last release
+        id: check
+        run: |
+          LAST_RELEASE=$(git tag -l '20*' | sort -V | tail -1)
+          if [ -z "$LAST_RELEASE" ]; then
+            echo "No previous releases found"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          elif git diff --quiet $LAST_RELEASE HEAD; then
+            echo "No changes since $LAST_RELEASE"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected since $LAST_RELEASE"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push tag
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG=$(date +%Y.%m.%d)
+          git tag -f $TAG
+          git push -f origin $TAG

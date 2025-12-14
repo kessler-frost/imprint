@@ -1,8 +1,7 @@
 # Imprint
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/kessler-frost/imprint.svg)](https://pkg.go.dev/github.com/kessler-frost/imprint)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kessler-frost/imprint)](https://goreportcard.com/report/github.com/kessler-frost/imprint)
 [![License](https://img.shields.io/github/license/kessler-frost/imprint)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/kessler-frost/imprint)](https://github.com/kessler-frost/imprint/releases)
 
 Lets AI agents control a real terminal and see exactly what's on screen with builtin REST API + MCP server. Allows framework-agnostic TUI testing.
 
@@ -26,26 +25,38 @@ This lets agents test like real users do—interacting with the terminal and see
 
 ## Installation
 
-### Prerequisites
-
-Install ttyd:
-
 ```bash
-# macOS
-brew install ttyd
-
-# Ubuntu/Debian
-sudo apt install ttyd
-
-# Arch Linux
-sudo pacman -S ttyd
+curl -fsSL https://raw.githubusercontent.com/kessler-frost/imprint/main/install.sh | sh
 ```
 
-### Install Imprint
+This installs imprint and its dependency ttyd (if not already installed).
+
+### Uninstall
 
 ```bash
-go install github.com/kessler-frost/imprint/cmd/imprint@latest
+curl -fsSL https://raw.githubusercontent.com/kessler-frost/imprint/main/install.sh | sh -s -- --uninstall
 ```
+
+### Manual Installation
+
+If you prefer manual installation:
+
+1. Install ttyd:
+   ```bash
+   # macOS
+   brew install ttyd
+
+   # Ubuntu/Debian
+   sudo apt install ttyd
+
+   # Arch Linux
+   sudo pacman -S ttyd
+   ```
+
+2. Download imprint from [releases](https://github.com/kessler-frost/imprint/releases) or:
+   ```bash
+   go install github.com/kessler-frost/imprint/cmd/imprint@latest
+   ```
 
 ## Usage
 

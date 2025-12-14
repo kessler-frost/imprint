@@ -13,12 +13,20 @@ import (
 	"github.com/kessler-frost/imprint/internal/terminal"
 )
 
+var Version = "dev"
+
 func main() {
 	port := flag.Int("port", 8080, "REST API port")
 	shell := flag.String("shell", getDefaultShell(), "Shell to run")
 	rows := flag.Int("rows", 24, "Terminal rows")
 	cols := flag.Int("cols", 80, "Terminal columns")
+	version := flag.Bool("version", false, "Print version and exit")
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("imprint version %s\n", Version)
+		os.Exit(0)
+	}
 
 	// Create terminal
 	term, err := terminal.New(*shell, *rows, *cols)
