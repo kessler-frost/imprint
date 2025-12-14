@@ -80,35 +80,7 @@ Before running `go get`, first check the latest version:
 Then add the specific version you want.
 ```
 
-### 4. `.claude/hookify.block-stop-without-build.local.md`
-
-```markdown
----
-name: block-stop-without-build
-enabled: true
-event: stop
-action: block
-conditions:
-  - field: transcript
-    operator: regex_match
-    pattern: Edit.*\.go|Write.*\.go
-  - field: transcript
-    operator: not_contains
-    pattern: go build
----
-
-**Go files were modified but not built!**
-
-Run the build before completing:
-`go build -o bin/imprint ./cmd/imprint`
-
-For examples, also build:
-- `go build -o examples/screenshot-demo/screenshot-demo ./examples/screenshot-demo`
-- `go build -o examples/text-demo/text-demo ./examples/text-demo`
-- `go build -o examples/what-changed/what-changed ./examples/what-changed`
-```
-
-### 5. `.claude/hookify.warn-parallel-agents.local.md`
+### 4. `.claude/hookify.warn-parallel-agents.local.md`
 
 ```markdown
 ---
