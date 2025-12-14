@@ -1,5 +1,9 @@
 # Imprint
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/kessler-frost/imprint.svg)](https://pkg.go.dev/github.com/kessler-frost/imprint)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kessler-frost/imprint)](https://goreportcard.com/report/github.com/kessler-frost/imprint)
+[![License](https://img.shields.io/github/license/kessler-frost/imprint)](LICENSE)
+
 Agent-controllable terminal emulator with REST API and MCP server interfaces.
 
 ## Overview
@@ -24,11 +28,17 @@ This lets agents test like real users do—interacting with the terminal and see
 
 ### Prerequisites
 
+Install ttyd:
+
 ```bash
 # macOS
 brew install ttyd
 
-# Chrome/Chromium is auto-downloaded by go-rod
+# Ubuntu/Debian
+sudo apt install ttyd
+
+# Arch Linux
+sudo pacman -S ttyd
 ```
 
 ### Install Imprint
