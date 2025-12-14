@@ -62,7 +62,12 @@ func (s *Server) registerTools(mcpServer *server.MCPServer) {
 	// Tool: get_screenshot
 	screenshotTool := mcp.NewTool(
 		"get_screenshot",
-		mcp.WithDescription("Get the current terminal screen as a base64-encoded PNG image"),
+		mcp.WithDescription("Get the current terminal screen as a base64-encoded JPEG image"),
+		mcp.WithNumber("quality",
+			mcp.Description("JPEG quality 0-100 (default: 70, lower = smaller file)"),
+			mcp.Min(0),
+			mcp.Max(100),
+		),
 	)
 	mcpServer.AddTool(screenshotTool, s.handleGetScreenshot)
 
@@ -130,13 +135,15 @@ func (s *Server) handleTypeText(ctx context.Context, request mcp.CallToolRequest
 
 // handleGetScreenshot handles the get_screenshot tool call.
 func (s *Server) handleGetScreenshot(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	pngData, err := s.term.Screenshot()
+	quality := request.GetInt("quality", 70)
+
+	jpegData, err := s.term.Screenshot(quality)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to capture screenshot: %v", err)), nil
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(pngData)
-	return mcp.NewToolResultText(encoded), nil
+	encoded := base64.StdEncoding.EncodeToString(jpegData)
+	return mcp.NewToolResultImage("Terminal screenshot", encoded, "image/jpeg"), nil
 }
 
 // handleGetScreenText handles the get_screen_text tool call.

@@ -10,6 +10,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // Terminal manages a real terminal session via ttyd and headless Chrome.
@@ -229,9 +230,12 @@ func (t *Terminal) Type(text string) error {
 	return textarea.Input(text)
 }
 
-// Screenshot captures the current screen as PNG.
-func (t *Terminal) Screenshot() ([]byte, error) {
-	return t.page.Screenshot(false, nil)
+// Screenshot captures the current screen as JPEG with the specified quality (0-100).
+func (t *Terminal) Screenshot(quality int) ([]byte, error) {
+	return t.page.Screenshot(false, &proto.PageCaptureScreenshot{
+		Format:  proto.PageCaptureScreenshotFormatJpeg,
+		Quality: &quality,
+	})
 }
 
 // GetText returns the current screen as plain text.

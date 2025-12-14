@@ -1,5 +1,12 @@
 # Imprint - Claude Code Instructions
 
+## Binary Location
+
+The MCP server binary is at `bin/imprint`. After building, always copy to this location:
+```bash
+go build -o bin/imprint ./cmd/imprint
+```
+
 ## Dependencies
 
 Always use the latest stable versions of dependencies:

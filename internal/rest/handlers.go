@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 )
 
 // KeystrokeRequest represents the JSON body for /keystroke endpoint.
@@ -121,7 +122,7 @@ func (s *Server) handleType(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(SuccessResponse{Success: true})
 }
 
-// handleScreen handles GET /screen - returns current screen as PNG.
+// handleScreen handles GET /screen - returns current screen as JPEG.
 func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Content-Type", "application/json")
@@ -130,7 +131,14 @@ func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	screenshot, err := s.term.Screenshot()
+	quality := 70 // default
+	if q := r.URL.Query().Get("quality"); q != "" {
+		if parsed, err := strconv.Atoi(q); err == nil && parsed >= 0 && parsed <= 100 {
+			quality = parsed
+		}
+	}
+
+	screenshot, err := s.term.Screenshot(quality)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -138,7 +146,7 @@ func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Type", "image/jpeg")
 	w.WriteHeader(http.StatusOK)
 	w.Write(screenshot)
 }
