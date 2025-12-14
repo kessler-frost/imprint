@@ -143,9 +143,17 @@ func (t *Terminal) SendKey(key string) error {
 		}
 	}
 
-	// Single key press
+	// Single key press - check special keys first
 	if k, ok := keyMap[key]; ok {
 		return t.page.Keyboard.Press(k)
+	}
+
+	// Single letter key
+	if len(key) == 1 {
+		char := rune(key[0])
+		if k, ok := letterKeyMap[char]; ok {
+			return t.page.Keyboard.Press(k)
+		}
 	}
 
 	return fmt.Errorf("unknown key: %s", key)
