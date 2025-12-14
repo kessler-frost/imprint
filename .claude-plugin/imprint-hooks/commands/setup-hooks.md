@@ -42,15 +42,16 @@ action: warn
 conditions:
   - field: user_prompt
     operator: regex_match
-    pattern: implement|build|create|add.*feature|develop
+    pattern: implement|build|create|add.*feature|develop|plan
 ---
 
-**Consider using parallel agents!**
+**Plan for parallel agent execution!**
 
-When implementing plans with independent tasks:
-- Split work into parallel tracks
-- Launch agents simultaneously with multiple Task tool calls
-- Only serialize tasks that have dependencies
+When writing this plan:
+- Identify independent tasks that can run in parallel
+- Group tasks by dependencies - independent tasks should be in the same phase
+- Explicitly note which tasks can be launched simultaneously via multiple Task tool calls
+- Only serialize tasks that depend on outputs from previous tasks
 ```
 
 ## Instructions

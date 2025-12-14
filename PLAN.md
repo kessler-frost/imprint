@@ -347,8 +347,6 @@ imprint --port 8080
 
 ### Core Improvements (High Priority)
 
-- **Batch keystrokes** - Support sending multiple keystrokes in a single request (e.g., `{"keys": ["up", "up", "enter"]}`) to reduce round-trip latency for common sequences.
-
 - **Concurrency safety** - Add mutex synchronization around terminal operations. Both REST and MCP servers share the same Terminal instance without coordination.
 
 - **Graceful error handling** - Replace panic-prone `Must*()` calls with proper error returns. Improves reliability in long-running daemon mode.

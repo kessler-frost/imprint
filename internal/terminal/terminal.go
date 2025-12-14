@@ -160,6 +160,17 @@ func (t *Terminal) SendKey(key string) error {
 	return fmt.Errorf("unknown key: %s", key)
 }
 
+// SendKeys sends multiple keystrokes to the terminal.
+// Fails fast on the first error, returning which key failed.
+func (t *Terminal) SendKeys(keys []string) error {
+	for i, key := range keys {
+		if err := t.SendKey(key); err != nil {
+			return fmt.Errorf("key %d (%s): %w", i, key, err)
+		}
+	}
+	return nil
+}
+
 // sendCtrlKey sends a Ctrl+key combination
 func (t *Terminal) sendCtrlKey(key string) error {
 	var targetKey input.Key

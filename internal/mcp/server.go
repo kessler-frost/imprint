@@ -37,16 +37,16 @@ func (s *Server) Start() error {
 
 // registerTools adds all terminal control tools to the MCP server.
 func (s *Server) registerTools(mcpServer *server.MCPServer) {
-	// Tool: send_keystroke
-	sendKeyTool := mcp.NewTool(
-		"send_keystroke",
-		mcp.WithDescription("Send a key press to the terminal"),
-		mcp.WithString("key",
-			mcp.Description("Key to send (e.g., 'enter', 'ctrl+c', 'up')"),
+	// Tool: send_keystrokes
+	sendKeysTool := mcp.NewTool(
+		"send_keystrokes",
+		mcp.WithDescription("Send key presses to the terminal in sequence"),
+		mcp.WithArray("keys",
+			mcp.Description("Array of keys to send (e.g., ['enter'], ['up', 'up', 'enter'], ['ctrl+c'])"),
 			mcp.Required(),
 		),
 	)
-	mcpServer.AddTool(sendKeyTool, s.handleSendKey)
+	mcpServer.AddTool(sendKeysTool, s.handleSendKeys)
 
 	// Tool: type_text
 	typeTextTool := mcp.NewTool(
@@ -113,19 +113,23 @@ func (s *Server) registerTools(mcpServer *server.MCPServer) {
 	mcpServer.AddTool(restartTool, s.handleRestart)
 }
 
-// handleSendKey handles the send_keystroke tool call.
-func (s *Server) handleSendKey(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	key, err := request.RequireString("key")
+// handleSendKeys handles the send_keystrokes tool call.
+func (s *Server) handleSendKeys(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	keys, err := request.RequireStringSlice("keys")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	err = s.term.SendKey(key)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to send key: %v", err)), nil
+	if len(keys) == 0 {
+		return mcp.NewToolResultError("keys array must not be empty"), nil
 	}
 
-	return mcp.NewToolResultText(fmt.Sprintf("Key '%s' sent successfully", key)), nil
+	err = s.term.SendKeys(keys)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to send keys: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(fmt.Sprintf("%d keys sent successfully", len(keys))), nil
 }
 
 // handleTypeText handles the type_text tool call.

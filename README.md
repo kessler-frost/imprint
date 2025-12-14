@@ -77,9 +77,9 @@ imprint --help
 ## REST API
 
 ```
-POST /keystroke    - Send single key (e.g., {"key": "enter"})
+POST /keystrokes   - Send keys (e.g., {"keys": ["enter"]}, {"keys": ["up", "up", "enter"]})
 POST /type         - Type text (e.g., {"text": "ls -la"})
-GET  /screen       - Get current screen as PNG
+GET  /screen       - Get current screen as JPEG
 GET  /screen/text  - Get current screen as text
 GET  /status       - Terminal status (rows, cols, ready)
 POST /resize       - Resize terminal
@@ -90,15 +90,16 @@ POST /resize       - Resize terminal
 ```python
 import requests
 
-# Type a command
+# Type a command and press enter
 requests.post("http://localhost:8080/type", json={"text": "ls -la"})
+requests.post("http://localhost:8080/keystrokes", json={"keys": ["enter"]})
 
-# Press enter
-requests.post("http://localhost:8080/keystroke", json={"key": "enter"})
+# Navigate with multiple keys
+requests.post("http://localhost:8080/keystrokes", json={"keys": ["up", "up", "enter"]})
 
 # Get screenshot
 screen = requests.get("http://localhost:8080/screen").content
-with open("screen.png", "wb") as f:
+with open("screen.jpg", "wb") as f:
     f.write(screen)
 ```
 
@@ -119,12 +120,13 @@ Add to your `.mcp.json`:
 
 ### Available Tools
 
-- `send_keystroke` - Send a key press
+- `send_keystrokes` - Send key presses (e.g., `["enter"]`, `["up", "up", "enter"]`)
 - `type_text` - Type a string
-- `get_screenshot` - Get screen as base64 PNG
+- `get_screenshot` - Get screen as base64 JPEG
 - `get_screen_text` - Get screen as plain text
 - `get_status` - Get terminal status
 - `resize_terminal` - Resize the terminal
+- `restart_terminal` - Restart the terminal (optionally with a new command)
 
 ## Examples
 

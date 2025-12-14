@@ -7,9 +7,9 @@ import (
 	"strconv"
 )
 
-// KeystrokeRequest represents the JSON body for /keystroke endpoint.
-type KeystrokeRequest struct {
-	Key string `json:"key"`
+// KeystrokesRequest represents the JSON body for /keystrokes endpoint.
+type KeystrokesRequest struct {
+	Keys []string `json:"keys"`
 }
 
 // TypeRequest represents the JSON body for /type endpoint.
@@ -45,8 +45,8 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-// handleKeystroke handles POST /keystroke - sends a single key to the terminal.
-func (s *Server) handleKeystroke(w http.ResponseWriter, r *http.Request) {
+// handleKeystrokes handles POST /keystrokes - sends multiple keys to the terminal.
+func (s *Server) handleKeystrokes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method != http.MethodPost {
@@ -63,20 +63,20 @@ func (s *Server) handleKeystroke(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	var req KeystrokeRequest
+	var req KeystrokesRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid JSON"})
 		return
 	}
 
-	if req.Key == "" {
+	if len(req.Keys) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "key field is required"})
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "keys field is required and must not be empty"})
 		return
 	}
 
-	if err := s.term.SendKey(req.Key); err != nil {
+	if err := s.term.SendKeys(req.Keys); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
 		return

@@ -25,7 +25,7 @@ func New(term *terminal.Terminal, port int) *Server {
 func (s *Server) Start() error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/keystroke", corsMiddleware(s.handleKeystroke))
+	mux.HandleFunc("/keystrokes", corsMiddleware(s.handleKeystrokes))
 	mux.HandleFunc("/type", corsMiddleware(s.handleType))
 	mux.HandleFunc("/screen", corsMiddleware(s.handleScreen))
 	mux.HandleFunc("/screen/text", corsMiddleware(s.handleScreenText))
