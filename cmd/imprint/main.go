@@ -25,6 +25,7 @@ func main() {
 	cols := flag.Int("cols", 80, "Terminal columns")
 	version := flag.Bool("version", false, "Print version and exit")
 	daemon := flag.Bool("daemon", false, "Run in background (writes PID to ~/.imprint.pid)")
+	flag.BoolVar(daemon, "d", false, "Run in background (shorthand)")
 	stop := flag.Bool("stop", false, "Stop a running daemon")
 	flag.Parse()
 
@@ -110,10 +111,10 @@ func startDaemon(pidFile string) {
 		}
 	}
 
-	// Re-exec without -daemon flag
+	// Re-exec without -daemon/-d flag
 	args := []string{}
 	for _, arg := range os.Args[1:] {
-		if arg != "-daemon" && arg != "--daemon" {
+		if arg != "-daemon" && arg != "--daemon" && arg != "-d" {
 			args = append(args, arg)
 		}
 	}
