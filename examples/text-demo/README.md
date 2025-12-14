@@ -2,15 +2,10 @@
 
 A minimal [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI for testing imprint's `get_screen_text` tool.
 
-## Build
+## Building
 
 ```bash
-go build -o text-demo
-```
-
-## Run
-
-```bash
+go build
 ./text-demo
 ```
 
@@ -23,16 +18,10 @@ go build -o text-demo
 
 ## Testing with Imprint
 
-Add imprint as an MCP server:
-
-```bash
-claude mcp add imprint -- imprint
-```
-
-Then use Claude Code with commands like:
+Assumes imprint MCP server is configured (see [main README](../../README.md#mcp-server-claude-code)).
 
 ```
-"Use type_text to type './text-demo' and then send_keystrokes with ['enter']"
+"Use type_text to run './text-demo' and send_keystrokes ['enter']"
 "Navigate down with send_keystrokes ['j'] and toggle with ['space']"
 "Use get_screen_text to see the current terminal state"
 ```

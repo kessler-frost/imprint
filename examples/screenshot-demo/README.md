@@ -1,10 +1,35 @@
 # Screenshot Demo
 
-This demo showcases visual elements that can **only be verified via screenshot analysis**, not text inspection. It's designed to test Imprint's screenshot capabilities.
+A [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI demonstrating visual elements that require screenshot analysis. Shows random colors and intentional visual bugs.
+
+## Building
+
+```bash
+go build
+./screenshot-demo
+```
+
+## Controls
+
+- `j` / `down` - Move selection down
+- `k` / `up` - Move selection up
+- `r` - Regenerate random colors
+- `q` / `ctrl+c` - Quit
+
+## Testing with Imprint
+
+Assumes imprint MCP server is configured (see [main README](../../README.md#mcp-server-claude-code)).
+
+```
+"Use type_text to run './screenshot-demo' and send_keystrokes ['enter']"
+"Use get_screenshot to capture the visual output"
+"Navigate with send_keystrokes ['j'] and press 'r' to regenerate colors"
+```
 
 ## Features
 
 ### Random Color Display
+
 - Shows 4 colored squares using randomly selected colors from a palette at startup
 - Available colors: Red, Green, Blue, Yellow, Magenta, Cyan
 - Labels show "Color1", "Color2", etc. - the actual colors are only visible via screenshot
@@ -21,49 +46,6 @@ These bugs look correct in the source code but render incorrectly in the termina
 3. **Off-by-one Positioning**: Extra space added after "Misaligned text here" causes subtle positioning issues.
 
 4. **Poor Contrast**: Yellow text (`#FFFF00`) on light gray background (`#F0F0F0`) is nearly impossible to read, but appears fine in the code.
-
-## Navigation
-
-- `j` or `Down Arrow`: Move selection down
-- `k` or `Up Arrow`: Move selection up
-- `r`: Regenerate random colors
-- `q` or `Ctrl+C`: Quit
-
-## Building and Running
-
-```bash
-go mod tidy
-go build -o screenshot-demo
-./screenshot-demo
-```
-
-## Testing with Imprint
-
-Add imprint as an MCP server:
-
-```bash
-claude mcp add imprint -- imprint
-```
-
-Then use Claude Code to interact with the demo:
-
-```
-"Use type_text to run './screenshot-demo' and send_keystrokes ['enter']"
-"Use get_screenshot to capture the visual output"
-"Navigate with send_keystrokes ['j'] and press 'r' to regenerate colors"
-```
-
-The screenshot will reveal:
-- The actual random colors chosen
-- The misaligned title
-- The color bleeding effect
-- The hard-to-read yellow text on light background
-
-An AI analyzing the screenshot should be able to identify:
-- Which random colors were selected
-- That the title is not properly centered
-- That magenta color bleeds into the block characters
-- That the "Hard to read text" has poor contrast
 
 ## Why Screenshot Analysis?
 

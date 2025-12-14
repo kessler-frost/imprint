@@ -83,13 +83,13 @@ imprint --help
 Add imprint as an MCP server:
 
 ```bash
-claude mcp add imprint -- imprint
+claude mcp add imprint -- ~/.local/bin/imprint
 ```
 
 With custom terminal size:
 
 ```bash
-claude mcp add imprint -- imprint --rows 30 --cols 120
+claude mcp add imprint -- ~/.local/bin/imprint --rows 30 --cols 120
 ```
 
 ### Available Tools
