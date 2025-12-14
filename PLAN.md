@@ -310,10 +310,6 @@ imprint --port 8080
 
 ### TUI Testing Tools (High Priority)
 
-- **`wait_for_text` tool** - Block until specific text appears on screen with configurable timeout. Eliminates fragile sleep-based timing in test scripts.
-
-- **`wait_for_stable` tool** - Wait until the screen stops changing. Essential for handling animations, async rendering, and loading states.
-
 - **Screenshot diffing** - Compare current screen against a baseline image. Returns diff percentage and highlighted diff image for visual regression testing.
 
 - **Mouse support** - Enable mouse interactions for modern TUIs:
@@ -346,8 +342,6 @@ imprint --port 8080
 - **Test fixtures/scenarios** - Built-in commands to set up common TUI states (scrollable list, form with inputs, etc.).
 
 ### Core Improvements (High Priority)
-
-- **Concurrency safety** - Add mutex synchronization around terminal operations. Both REST and MCP servers share the same Terminal instance without coordination.
 
 - **Graceful error handling** - Replace panic-prone `Must*()` calls with proper error returns. Improves reliability in long-running daemon mode.
 

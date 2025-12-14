@@ -5,6 +5,7 @@ import (
 	"net"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -15,6 +16,7 @@ import (
 
 // Terminal manages a real terminal session via ttyd and headless Chrome.
 type Terminal struct {
+	mu      sync.RWMutex
 	browser *rod.Browser
 	page    *rod.Page
 	cmd     *exec.Cmd
@@ -93,6 +95,14 @@ func findFreePort() (int, error) {
 
 // Start launches the terminal session.
 func (t *Terminal) Start() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.startUnlocked()
+}
+
+// startUnlocked launches the terminal session without acquiring the lock.
+// Caller must hold the lock.
+func (t *Terminal) startUnlocked() error {
 	// Start ttyd process with login interactive shell
 	t.cmd = exec.Command("ttyd",
 		"--port", fmt.Sprintf("%d", t.port),
@@ -124,6 +134,19 @@ func (t *Terminal) Start() error {
 
 // SendKey sends a keystroke to the terminal.
 func (t *Terminal) SendKey(key string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.page == nil {
+		return fmt.Errorf("terminal not ready")
+	}
+
+	return t.sendKeyUnlocked(key)
+}
+
+// sendKeyUnlocked sends a keystroke without acquiring the lock.
+// Caller must hold the lock.
+func (t *Terminal) sendKeyUnlocked(key string) error {
 	key = strings.ToLower(key)
 
 	// Handle modifier combinations like "ctrl+c"
@@ -163,8 +186,15 @@ func (t *Terminal) SendKey(key string) error {
 // SendKeys sends multiple keystrokes to the terminal.
 // Fails fast on the first error, returning which key failed.
 func (t *Terminal) SendKeys(keys []string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.page == nil {
+		return fmt.Errorf("terminal not ready")
+	}
+
 	for i, key := range keys {
-		if err := t.SendKey(key); err != nil {
+		if err := t.sendKeyUnlocked(key); err != nil {
 			return fmt.Errorf("key %d (%s): %w", i, key, err)
 		}
 	}
@@ -236,6 +266,13 @@ func (t *Terminal) sendShiftKey(key string) error {
 
 // Type types a string of characters.
 func (t *Terminal) Type(text string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.page == nil {
+		return fmt.Errorf("terminal not ready")
+	}
+
 	// Find the terminal's textarea element and input text
 	textarea := t.page.MustElement("textarea")
 	return textarea.Input(text)
@@ -243,6 +280,13 @@ func (t *Terminal) Type(text string) error {
 
 // Screenshot captures the current screen as JPEG with the specified quality (0-100).
 func (t *Terminal) Screenshot(quality int) ([]byte, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	if t.page == nil {
+		return nil, fmt.Errorf("terminal not ready")
+	}
+
 	return t.page.Screenshot(false, &proto.PageCaptureScreenshot{
 		Format:  proto.PageCaptureScreenshotFormatJpeg,
 		Quality: &quality,
@@ -251,6 +295,13 @@ func (t *Terminal) Screenshot(quality int) ([]byte, error) {
 
 // GetText returns the current screen as plain text.
 func (t *Terminal) GetText() (string, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	if t.page == nil {
+		return "", fmt.Errorf("terminal not ready")
+	}
+
 	// Use xterm.js buffer API to get terminal content
 	result, err := t.page.Eval(`() => {
 		const term = window.term;
@@ -271,8 +322,89 @@ func (t *Terminal) GetText() (string, error) {
 	return result.Value.String(), nil
 }
 
+// WaitForText polls until the specified text appears on screen or timeout.
+// Returns elapsed time in ms, whether text was found, and any error.
+func (t *Terminal) WaitForText(text string, timeoutMs int) (elapsedMs int, found bool, err error) {
+	pollInterval := 100 * time.Millisecond
+	startTime := time.Now()
+	timeoutDuration := time.Duration(timeoutMs) * time.Millisecond
+
+	for {
+		screenText, err := t.GetText()
+		if err != nil {
+			return int(time.Since(startTime).Milliseconds()), false, fmt.Errorf("failed to get screen text: %w", err)
+		}
+
+		if strings.Contains(screenText, text) {
+			return int(time.Since(startTime).Milliseconds()), true, nil
+		}
+
+		elapsed := time.Since(startTime)
+		if elapsed >= timeoutDuration {
+			return int(elapsed.Milliseconds()), false, nil
+		}
+
+		time.Sleep(pollInterval)
+	}
+}
+
+// WaitForStable polls until the screen stops changing for stableMs duration or timeout.
+// Returns elapsed time in ms, whether stability was achieved, and any error.
+func (t *Terminal) WaitForStable(timeoutMs, stableMs int) (elapsedMs int, stable bool, err error) {
+	pollInterval := 100 * time.Millisecond
+	timeout := time.Duration(timeoutMs) * time.Millisecond
+	stableDuration := time.Duration(stableMs) * time.Millisecond
+
+	startTime := time.Now()
+	var lastText string
+	var lastChangeTime time.Time
+
+	lastText, err = t.GetText()
+	if err != nil {
+		return 0, false, err
+	}
+	lastChangeTime = startTime
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			currentText, err := t.GetText()
+			if err != nil {
+				elapsed := int(time.Since(startTime).Milliseconds())
+				return elapsed, false, err
+			}
+
+			if currentText != lastText {
+				lastText = currentText
+				lastChangeTime = time.Now()
+			}
+
+			timeSinceChange := time.Since(lastChangeTime)
+			if timeSinceChange >= stableDuration {
+				elapsed := int(time.Since(startTime).Milliseconds())
+				return elapsed, true, nil
+			}
+
+			if time.Since(startTime) >= timeout {
+				elapsed := int(time.Since(startTime).Milliseconds())
+				return elapsed, false, nil
+			}
+		}
+	}
+}
+
 // Resize changes the terminal dimensions.
 func (t *Terminal) Resize(rows, cols int) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.page == nil {
+		return fmt.Errorf("terminal not ready")
+	}
+
 	// Use xterm.js resize API
 	_, err := t.page.Eval(fmt.Sprintf(`() => {
 		const term = window.term;
@@ -293,6 +425,9 @@ func (t *Terminal) Resize(rows, cols int) error {
 
 // Close terminates the terminal session.
 func (t *Terminal) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	// Close browser
 	if t.browser != nil {
 		t.browser.MustClose()
@@ -310,6 +445,9 @@ func (t *Terminal) Close() error {
 // Restart closes and restarts the terminal, optionally with a new command.
 // If command is empty, uses the existing shell command.
 func (t *Terminal) Restart(command string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	// Close existing browser and ttyd
 	if t.browser != nil {
 		t.browser.MustClose()
@@ -334,11 +472,13 @@ func (t *Terminal) Restart(command string) error {
 	}
 	t.port = port
 
-	return t.Start()
+	return t.startUnlocked()
 }
 
 // Status returns terminal status information.
 func (t *Terminal) Status() (rows, cols int, ready bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	ready = t.page != nil
 	return t.rows, t.cols, ready
 }

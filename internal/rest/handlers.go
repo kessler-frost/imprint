@@ -28,6 +28,30 @@ type RestartRequest struct {
 	Command string `json:"command,omitempty"`
 }
 
+// WaitForTextRequest represents the JSON body for /wait/text endpoint.
+type WaitForTextRequest struct {
+	Text      string `json:"text"`
+	TimeoutMs int    `json:"timeout_ms,omitempty"`
+}
+
+// WaitForTextResponse represents the response from /wait/text endpoint.
+type WaitForTextResponse struct {
+	Found     bool `json:"found"`
+	ElapsedMs int  `json:"elapsed_ms"`
+}
+
+// WaitStableRequest represents the JSON body for /wait/stable endpoint.
+type WaitStableRequest struct {
+	TimeoutMs int `json:"timeout_ms,omitempty"`
+	StableMs  int `json:"stable_ms,omitempty"`
+}
+
+// WaitStableResponse represents the response from /wait/stable endpoint.
+type WaitStableResponse struct {
+	Stable    bool `json:"stable"`
+	ElapsedMs int  `json:"elapsed_ms"`
+}
+
 // SuccessResponse represents a successful operation response.
 type SuccessResponse struct {
 	Success bool `json:"success"`
@@ -261,4 +285,103 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(SuccessResponse{Success: true})
+}
+
+// handleWaitForText handles POST /wait/text - waits for text to appear on screen.
+func (s *Server) handleWaitForText(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "method not allowed"})
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to read request body"})
+		return
+	}
+	defer r.Body.Close()
+
+	var req WaitForTextRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid JSON"})
+		return
+	}
+
+	if req.Text == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "text field is required"})
+		return
+	}
+
+	timeoutMs := req.TimeoutMs
+	if timeoutMs <= 0 {
+		timeoutMs = 5000
+	}
+
+	elapsedMs, found, err := s.term.WaitForText(req.Text, timeoutMs)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(WaitForTextResponse{
+		Found:     found,
+		ElapsedMs: elapsedMs,
+	})
+}
+
+// handleWaitForStable handles POST /wait/stable - waits for screen to become stable.
+func (s *Server) handleWaitForStable(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "method not allowed"})
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to read request body"})
+		return
+	}
+	defer r.Body.Close()
+
+	var req WaitStableRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid JSON"})
+		return
+	}
+
+	timeoutMs := req.TimeoutMs
+	if timeoutMs <= 0 {
+		timeoutMs = 5000
+	}
+
+	stableMs := req.StableMs
+	if stableMs <= 0 {
+		stableMs = 500
+	}
+
+	elapsedMs, stable, err := s.term.WaitForStable(timeoutMs, stableMs)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(WaitStableResponse{
+		Stable:    stable,
+		ElapsedMs: elapsedMs,
+	})
 }

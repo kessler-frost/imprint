@@ -83,6 +83,9 @@ GET  /screen       - Get current screen as JPEG
 GET  /screen/text  - Get current screen as text
 GET  /status       - Terminal status (rows, cols, ready)
 POST /resize       - Resize terminal
+POST /restart      - Restart terminal (optionally with new command)
+POST /wait/text    - Wait for text to appear (e.g., {"text": "success", "timeout_ms": 5000})
+POST /wait/stable  - Wait for screen to stop changing (e.g., {"timeout_ms": 5000, "stable_ms": 500})
 ```
 
 ### Example (Python)
@@ -127,6 +130,8 @@ Add to your `.mcp.json`:
 - `get_status` - Get terminal status
 - `resize_terminal` - Resize the terminal
 - `restart_terminal` - Restart the terminal (optionally with a new command)
+- `wait_for_text` - Wait for text to appear on screen (5s default timeout)
+- `wait_for_stable` - Wait for screen to stop changing (500ms stable duration)
 
 ## Examples
 

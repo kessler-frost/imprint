@@ -111,6 +111,36 @@ func (s *Server) registerTools(mcpServer *server.MCPServer) {
 		),
 	)
 	mcpServer.AddTool(restartTool, s.handleRestart)
+
+	// Tool: wait_for_text
+	waitForTextTool := mcp.NewTool(
+		"wait_for_text",
+		mcp.WithDescription("Wait for specified text to appear on screen, polling every 100ms until found or timeout"),
+		mcp.WithString("text",
+			mcp.Description("Text to wait for (substring match)"),
+			mcp.Required(),
+		),
+		mcp.WithNumber("timeout_ms",
+			mcp.Description("Timeout in milliseconds (default: 5000)"),
+			mcp.Min(0),
+		),
+	)
+	mcpServer.AddTool(waitForTextTool, s.handleWaitForText)
+
+	// Tool: wait_for_stable
+	waitStableTool := mcp.NewTool(
+		"wait_for_stable",
+		mcp.WithDescription("Wait until the screen stops changing for a stable duration or timeout"),
+		mcp.WithNumber("timeout_ms",
+			mcp.Description("Maximum time to wait in milliseconds (default: 5000)"),
+			mcp.Min(0),
+		),
+		mcp.WithNumber("stable_ms",
+			mcp.Description("Duration screen must remain unchanged in milliseconds (default: 500)"),
+			mcp.Min(0),
+		),
+	)
+	mcpServer.AddTool(waitStableTool, s.handleWaitForStable)
 }
 
 // handleSendKeys handles the send_keystrokes tool call.
@@ -212,4 +242,40 @@ func (s *Server) handleRestart(ctx context.Context, request mcp.CallToolRequest)
 		msg = fmt.Sprintf("Terminal restarted with command: %s", command)
 	}
 	return mcp.NewToolResultText(msg), nil
+}
+
+// handleWaitForText handles the wait_for_text tool call.
+func (s *Server) handleWaitForText(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	text, err := request.RequireString("text")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	timeoutMs := request.GetInt("timeout_ms", 5000)
+
+	elapsedMs, found, err := s.term.WaitForText(text, timeoutMs)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to wait for text: %v", err)), nil
+	}
+
+	if found {
+		return mcp.NewToolResultText(fmt.Sprintf("Text found after %dms", elapsedMs)), nil
+	}
+	return mcp.NewToolResultText(fmt.Sprintf("Timeout after %dms", elapsedMs)), nil
+}
+
+// handleWaitForStable handles the wait_for_stable tool call.
+func (s *Server) handleWaitForStable(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	timeoutMs := request.GetInt("timeout_ms", 5000)
+	stableMs := request.GetInt("stable_ms", 500)
+
+	elapsedMs, stable, err := s.term.WaitForStable(timeoutMs, stableMs)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to wait for stable: %v", err)), nil
+	}
+
+	if stable {
+		return mcp.NewToolResultText(fmt.Sprintf("Screen stable after %dms", elapsedMs)), nil
+	}
+	return mcp.NewToolResultText(fmt.Sprintf("Timeout after %dms", elapsedMs)), nil
 }
