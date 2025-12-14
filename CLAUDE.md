@@ -14,3 +14,10 @@ When adding new dependencies, check for the latest version first using `go list 
 - Minimize if/else conditions and try/except blocks - avoid multiple code paths
 - Use `pathlib` equivalent patterns when dealing with file/directory paths
 - Keep code simple and focused on the task at hand
+
+## Plan Implementation
+
+When implementing plans, **always use multiple agents in parallel** where tasks are independent:
+- Split work into parallel tracks (e.g., Agent 1: rename/refactor, Agent 2: create new code)
+- Launch agents simultaneously in a single message with multiple Task tool calls
+- Only serialize tasks that have dependencies on each other
