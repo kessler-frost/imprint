@@ -39,22 +39,31 @@ go build -o screenshot-demo
 
 ## Testing with Imprint
 
-You can test this demo using Imprint's screenshot endpoint:
+Configure imprint in your `.mcp.json`:
 
-```bash
-# Start the MCP server
-imprint
-
-# In another terminal, run the demo
-./screenshot-demo
-
-# Use Imprint's get_screenshot to capture the visual output
-# The screenshot will reveal:
-# - The actual random colors chosen
-# - The misaligned title
-# - The color bleeding effect
-# - The hard-to-read yellow text on light background
+```json
+{
+  "mcpServers": {
+    "imprint": {
+      "command": "imprint"
+    }
+  }
+}
 ```
+
+Then use Claude Code to interact with the demo:
+
+```
+"Use type_text to run './screenshot-demo' and send_keystrokes ['enter']"
+"Use get_screenshot to capture the visual output"
+"Navigate with send_keystrokes ['j'] and press 'r' to regenerate colors"
+```
+
+The screenshot will reveal:
+- The actual random colors chosen
+- The misaligned title
+- The color bleeding effect
+- The hard-to-read yellow text on light background
 
 An AI analyzing the screenshot should be able to identify:
 - Which random colors were selected

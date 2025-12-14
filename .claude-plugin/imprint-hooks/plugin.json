@@ -1,9 +1,0 @@
-{
-  "name": "imprint-hooks",
-  "version": "1.0.0",
-  "description": "Setup hookify rules for imprint project build automation",
-  "author": {
-    "name": "Sankalp"
-  },
-  "keywords": ["hookify", "build-automation", "go"]
-}

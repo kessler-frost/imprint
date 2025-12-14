@@ -1,6 +1,6 @@
 # Text Demo
 
-A minimal [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI for testing imprint's `get_screen_text` endpoint.
+A minimal [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI for testing imprint's `get_screen_text` tool.
 
 ## Build
 
@@ -23,19 +23,24 @@ go build -o text-demo
 
 ## Testing with Imprint
 
-```python
-import requests
+Configure imprint in your `.mcp.json`:
 
-# Type and run the demo
-requests.post("http://localhost:8080/type", json={"text": "./text-demo"})
-requests.post("http://localhost:8080/keystroke", json={"key": "enter"})
-
-# Navigate and select
-requests.post("http://localhost:8080/keystroke", json={"key": "j"})
-requests.post("http://localhost:8080/keystroke", json={"key": "space"})
-
-# Get screen as text (use /screen for PNG screenshot)
-print(requests.get("http://localhost:8080/screen/text").text)
+```json
+{
+  "mcpServers": {
+    "imprint": {
+      "command": "imprint"
+    }
+  }
+}
 ```
 
-This example uses `/screen/text` since the TUI is text-based and doesn't rely on colors for meaning. Use `/screen` (PNG) when you need to verify colors or visual styling.
+Then use Claude Code with commands like:
+
+```
+"Use type_text to type './text-demo' and then send_keystrokes with ['enter']"
+"Navigate down with send_keystrokes ['j'] and toggle with ['space']"
+"Use get_screen_text to see the current terminal state"
+```
+
+This example uses `get_screen_text` since the TUI is text-based and doesn't rely on colors for meaning. Use `get_screenshot` when you need to verify colors or visual styling.

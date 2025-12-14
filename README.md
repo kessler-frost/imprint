@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/kessler-frost/imprint)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/kessler-frost/imprint)](https://github.com/kessler-frost/imprint/releases)
 
-Lets AI agents control a real terminal and see exactly what's on screen with builtin REST API + MCP server. Allows framework-agnostic TUI testing.
+Lets AI agents control a real terminal and see exactly what's on screen via MCP. Framework-agnostic TUI testing.
 
 ## Overview
 
@@ -20,10 +20,10 @@ This lets agents test like real users do—interacting with the terminal and see
 
 ## Features
 
-- **REST API**: HTTP endpoints for keystrokes and screenshots
-- **MCP Server**: Native Claude Code integration via stdio
+- **MCP Native**: Direct Claude Code integration via stdio protocol
 - **Real Terminal**: Actual shell execution, not simulation
 - **Pixel-Perfect Screenshots**: Exactly what you'd see in a real terminal
+- **Framework Agnostic**: Test any TUI application without framework-specific tooling
 
 ## Installation
 
@@ -62,48 +62,20 @@ If you prefer manual installation:
 
 ## Usage
 
+Imprint is designed to be launched by Claude Code as an MCP server. See the configuration below.
+
+### Manual Testing
+
 ```bash
-# Start imprint (REST on port 8080, MCP on stdio)
-imprint --port 8080
+# Run imprint directly (MCP on stdio)
+imprint
 
 # Options
 imprint --help
-  --port    REST API port (default: 8080)
   --shell   Shell to run (default: $SHELL)
   --rows    Terminal rows (default: 24)
   --cols    Terminal columns (default: 80)
-```
-
-## REST API
-
-```
-POST /keystrokes   - Send keys (e.g., {"keys": ["enter"]}, {"keys": ["up", "up", "enter"]})
-POST /type         - Type text (e.g., {"text": "ls -la"})
-GET  /screen       - Get current screen as JPEG
-GET  /screen/text  - Get current screen as text
-GET  /status       - Terminal status (rows, cols, ready)
-POST /resize       - Resize terminal
-POST /restart      - Restart terminal (optionally with new command)
-POST /wait/text    - Wait for text to appear (e.g., {"text": "success", "timeout_ms": 5000})
-POST /wait/stable  - Wait for screen to stop changing (e.g., {"timeout_ms": 5000, "stable_ms": 500})
-```
-
-### Example (Python)
-
-```python
-import requests
-
-# Type a command and press enter
-requests.post("http://localhost:8080/type", json={"text": "ls -la"})
-requests.post("http://localhost:8080/keystrokes", json={"keys": ["enter"]})
-
-# Navigate with multiple keys
-requests.post("http://localhost:8080/keystrokes", json={"keys": ["up", "up", "enter"]})
-
-# Get screenshot
-screen = requests.get("http://localhost:8080/screen").content
-with open("screen.jpg", "wb") as f:
-    f.write(screen)
+  --version Print version and exit
 ```
 
 ## MCP Server (Claude Code)
@@ -114,8 +86,20 @@ Add to your `.mcp.json`:
 {
   "mcpServers": {
     "imprint": {
+      "command": "imprint"
+    }
+  }
+}
+```
+
+With custom terminal size:
+
+```json
+{
+  "mcpServers": {
+    "imprint": {
       "command": "imprint",
-      "args": ["--port", "8080"]
+      "args": ["--rows", "30", "--cols", "120"]
     }
   }
 }
@@ -152,15 +136,15 @@ A simple text-based TUI using ASCII characters. Good for testing `get_screen_tex
 ```mermaid
 flowchart TB
     subgraph imprint
-        REST["REST Server<br/>(HTTP on port)"]
         MCP["MCP Server<br/>(stdio)"]
         TM["Terminal Manager<br/>(go-rod + ttyd)"]
         TTY["ttyd + Chrome/xterm<br/>(real PTY + render)"]
 
-        REST --> TM
         MCP --> TM
         TM --> TTY
     end
+
+    Claude["Claude Code"] -->|"JSON-RPC over stdio"| MCP
 ```
 
 ## Development

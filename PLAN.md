@@ -1,6 +1,6 @@
 # Imprint Implementation Plan
 
-**Goal**: Build an agent-controllable terminal emulator with both REST API and MCP server interfaces. Agents can request a screenshot of the terminal at any time, giving them pixel-perfect visibility into exactly what a user would see.
+**Goal**: Build an agent-controllable terminal emulator with MCP server interface. Agents can request a screenshot of the terminal at any time, giving them pixel-perfect visibility into exactly what a user would see.
 
 This lets agents test like real users do—interacting with the terminal and seeing what's actually on screen, regardless of how the app was built. TUI testing becomes framework-agnostic, allowing you to test any terminal application without needing to learn or use its internal testing strategies.
 
@@ -14,37 +14,30 @@ Imprint uses a headless browser approach for pixel-perfect terminal rendering:
 ```mermaid
 flowchart TB
     subgraph imprint
-        REST["REST Server<br/>(HTTP on port)"]
         MCP["MCP Server<br/>(stdio)"]
         TM["Terminal Manager<br/>(go-rod + ttyd)"]
         TTY["ttyd + Chrome/xterm<br/>(real PTY + render)"]
 
-        REST --> TM
         MCP --> TM
         TM --> TTY
     end
+
+    Claude["Claude Code"] -->|"JSON-RPC over stdio"| MCP
 ```
 
-## Interfaces
-
-### REST API (HTTP)
-```
-POST /keystroke    - Send single key (enter, ctrl+c, etc)
-POST /type         - Type string of characters
-GET  /screen       - Get current screen as PNG
-GET  /screen/text  - Get current screen as text
-GET  /status       - Terminal status (size, cursor)
-POST /resize       - Resize terminal
-```
+## Interface
 
 ### MCP Server (stdio)
 Tools exposed to AI agents:
-- `send_keystroke` - Send a key press
+- `send_keystrokes` - Send key presses (batch)
 - `type_text` - Type a string
-- `get_screenshot` - Get screen as base64 PNG
+- `get_screenshot` - Get screen as base64 JPEG
 - `get_screen_text` - Get screen as plain text
 - `get_status` - Get terminal status
 - `resize_terminal` - Resize the terminal
+- `restart_terminal` - Restart with optional new command
+- `wait_for_text` - Wait for text to appear (polling)
+- `wait_for_stable` - Wait for screen to stop changing
 
 ## Dependencies
 
@@ -70,9 +63,6 @@ imprint/
 ├── internal/
 │   ├── terminal/
 │   │   └── terminal.go       # Terminal manager (ttyd + go-rod)
-│   ├── rest/
-│   │   ├── server.go         # HTTP server
-│   │   └── handlers.go       # REST handlers
 │   └── mcp/
 │       └── server.go         # MCP server + tools
 ├── go.mod
@@ -86,20 +76,20 @@ imprint/
 
 ## Implementation Phases
 
-### Phase 1: Project Setup ✅
+### Phase 1: Project Setup
 **Files**: `go.mod`, `cmd/imprint/main.go`
 
 1. Initialize Go module: `github.com/kessler-frost/imprint`
 2. Add dependencies (go-rod, mcp-go)
 3. Create CLI with flags:
-   - `--port` (default: 8080) - REST API port
    - `--shell` (default: $SHELL)
    - `--rows` (default: 24)
    - `--cols` (default: 80)
+   - `--version`
 
 ---
 
-### Phase 2: Terminal Manager ✅
+### Phase 2: Terminal Manager
 **Files**: `internal/terminal/terminal.go`
 
 Core terminal control using ttyd + go-rod:
@@ -112,102 +102,77 @@ type Terminal struct {
     port    int
     rows    int
     cols    int
+    mu      sync.RWMutex
 }
 
 func New(shell string, rows, cols int) (*Terminal, error)
 func (t *Terminal) Start() error
-func (t *Terminal) SendKey(key string) error      // "enter", "ctrl+c", "a"
-func (t *Terminal) Type(text string) error        // Type string
-func (t *Terminal) Screenshot() ([]byte, error)   // PNG bytes
-func (t *Terminal) GetText() (string, error)      // Screen as text
+func (t *Terminal) SendKeys(keys []string) error   // Batch key presses
+func (t *Terminal) Type(text string) error         // Type string
+func (t *Terminal) Screenshot(quality int) ([]byte, error)  // JPEG bytes
+func (t *Terminal) GetText() (string, error)       // Screen as text
 func (t *Terminal) Resize(rows, cols int) error
+func (t *Terminal) Restart(command string) error
+func (t *Terminal) WaitForText(text string, timeoutMs int) (int, bool, error)
+func (t *Terminal) WaitForStable(timeoutMs, stableMs int) (int, bool, error)
 func (t *Terminal) Close() error
 ```
 
 **Key implementation details:**
-- Start ttyd with: `ttyd --port {port} --interface 127.0.0.1 --once {shell}`
+- Start ttyd with: `ttyd --port {port} --interface 127.0.0.1 --writable {shell}`
 - Connect go-rod browser to `http://127.0.0.1:{port}`
 - Use `page.Keyboard.Press()` for special keys
 - Use `page.MustElement("textarea").Input()` for text
-- Use `page.Screenshot()` for PNG capture
+- Use `page.Screenshot()` for capture (JPEG format)
 - Extract text via JavaScript eval on xterm.js buffer
 
 ---
 
-### Phase 3: REST Server ✅
-**Files**: `internal/rest/server.go`, `internal/rest/handlers.go`
-
-HTTP REST API implementation:
-
-```go
-type Server struct {
-    term *terminal.Terminal
-    port int
-}
-
-func New(term *terminal.Terminal, port int) *Server
-func (s *Server) Start() error
-
-// Handlers
-func (s *Server) HandleKeystroke(w http.ResponseWriter, r *http.Request)
-func (s *Server) HandleType(w http.ResponseWriter, r *http.Request)
-func (s *Server) HandleScreen(w http.ResponseWriter, r *http.Request)
-func (s *Server) HandleScreenText(w http.ResponseWriter, r *http.Request)
-func (s *Server) HandleStatus(w http.ResponseWriter, r *http.Request)
-func (s *Server) HandleResize(w http.ResponseWriter, r *http.Request)
-```
-
----
-
-### Phase 4: MCP Server ✅
+### Phase 3: MCP Server
 **Files**: `internal/mcp/server.go`
 
 MCP server using stdio transport:
 
 ```go
-type MCPServer struct {
+type Server struct {
     term   *terminal.Terminal
-    server *mcp.Server
 }
 
-func New(term *terminal.Terminal) *MCPServer
-func (m *MCPServer) Start() error  // Blocks on stdio
+func New(term *terminal.Terminal) *Server
+func (s *Server) Start() error  // Blocks on stdio
 
 // Tools registered with MCP:
-// - send_keystroke(key: string)
+// - send_keystrokes(keys: []string)
 // - type_text(text: string)
-// - get_screenshot() -> base64 PNG
+// - get_screenshot(quality?: int) -> base64 JPEG
 // - get_screen_text() -> string
 // - get_status() -> {rows, cols, ready}
 // - resize_terminal(rows: int, cols: int)
+// - restart_terminal(command?: string)
+// - wait_for_text(text: string, timeout_ms?: int) -> {elapsed_ms, found}
+// - wait_for_stable(timeout_ms?: int, stable_ms?: int) -> {elapsed_ms, stable}
 ```
 
 ---
 
-### Phase 5: CLI Integration ✅
+### Phase 4: CLI Integration
 **Files**: `cmd/imprint/main.go`
 
-Wire everything together, run both servers:
+Wire everything together:
 
 ```go
 func main() {
-    // Parse flags
-    port := flag.Int("port", 8080, "REST API port")
     shell := flag.String("shell", os.Getenv("SHELL"), "Shell to run")
     rows := flag.Int("rows", 24, "Terminal rows")
     cols := flag.Int("cols", 80, "Terminal columns")
+    version := flag.Bool("version", false, "Print version and exit")
 
-    // Create terminal
     term, _ := terminal.New(*shell, *rows, *cols)
     term.Start()
+    defer term.Close()
 
-    // Start REST server (goroutine)
-    restServer := rest.New(term, *port)
-    go restServer.Start()
-
-    // Start MCP server (blocks on stdio)
     mcpServer := mcp.New(term)
-    mcpServer.Start()
+    mcpServer.Start()  // Blocks on stdio
 }
 ```
 
@@ -250,8 +215,20 @@ Users add to `.mcp.json`:
 {
   "mcpServers": {
     "imprint": {
+      "command": "imprint"
+    }
+  }
+}
+```
+
+With custom terminal size:
+
+```json
+{
+  "mcpServers": {
+    "imprint": {
       "command": "imprint",
-      "args": ["--port", "8080"]
+      "args": ["--rows", "30", "--cols", "120"]
     }
   }
 }
@@ -261,33 +238,24 @@ Then AI agents can use the terminal tools directly.
 
 ---
 
-## API Usage Examples
-
-### REST (Python)
-```python
-import requests
-
-requests.post("http://localhost:8080/type", json={"text": "ls -la"})
-requests.post("http://localhost:8080/keystroke", json={"key": "enter"})
-screen = requests.get("http://localhost:8080/screen").content  # PNG
-```
+## Usage Examples
 
 ### MCP (Claude Code)
 ```
 User: Run ls in the terminal and show me the output
-Claude: [Uses send_keystroke and get_screenshot tools automatically]
+Claude: [Uses type_text, send_keystrokes, and get_screenshot tools automatically]
 ```
 
 ---
 
 ## Success Criteria for v1
 
-1. `imprint` starts terminal + REST server + MCP server
-2. REST: `GET /screen` returns valid PNG
-3. REST: `POST /keystroke` and `/type` work
-4. MCP: Tools appear in Claude Code
-5. MCP: Can run commands and see screenshots in Claude Code
-6. Both interfaces control the same terminal session
+1. `imprint` starts terminal + MCP server
+2. MCP: Tools appear in Claude Code
+3. MCP: Can send keystrokes and type text
+4. MCP: Can capture screenshots and screen text
+5. MCP: Can resize and restart terminal
+6. MCP: wait_for_text and wait_for_stable work correctly
 
 ---
 
@@ -300,8 +268,8 @@ brew install ttyd
 # Install imprint
 go install github.com/kessler-frost/imprint/cmd/imprint@latest
 
-# Run
-imprint --port 8080
+# Run (launched by Claude Code via MCP)
+imprint
 ```
 
 ---
@@ -343,17 +311,15 @@ imprint --port 8080
 
 ### Core Improvements (High Priority)
 
-- **Graceful error handling** - Replace panic-prone `Must*()` calls with proper error returns. Improves reliability in long-running daemon mode.
+- **Graceful error handling** - Replace panic-prone `Must*()` calls with proper error returns. Improves reliability.
 
-- **Unit tests** - Add test coverage for key mapping logic, text extraction, and REST handlers.
+- **Unit tests** - Add test coverage for key mapping logic, text extraction, and MCP handlers.
 
 - **Configurable timing** - Make ttyd startup wait time configurable via flag/env var instead of hard-coded 500ms.
 
 ### Core Improvements (Medium Priority)
 
-- **Health endpoint** - Add `/health` or `/ready` endpoint for orchestration and monitoring.
-
-- **Structured logging** - Add log levels (debug, info, warn, error) to help diagnose production issues.
+- **Structured logging** - Add log levels (debug, info, warn, error) to help diagnose issues.
 
 - **Multiple terminal sessions** - Support multiple concurrent terminal instances for parallel test execution.
 
@@ -361,6 +327,4 @@ imprint --port 8080
 
 - **Stream terminal in browser** - Web-based terminal viewer for debugging and demos.
 
-- **Linux/Windows support improvements** - Better cross-platform compatibility, especially for daemon mode.
-
-- **Configurable screenshot format** - Allow choosing between JPEG (smaller) and PNG (lossless) per request.
+- **Linux/Windows support improvements** - Better cross-platform compatibility.
