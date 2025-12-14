@@ -23,6 +23,11 @@ type ResizeRequest struct {
 	Cols int `json:"cols"`
 }
 
+// RestartRequest represents the JSON body for /restart endpoint.
+type RestartRequest struct {
+	Command string `json:"command,omitempty"`
+}
+
 // SuccessResponse represents a successful operation response.
 type SuccessResponse struct {
 	Success bool `json:"success"`
@@ -225,6 +230,30 @@ func (s *Server) handleResize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.term.Resize(req.Rows, req.Cols); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(SuccessResponse{Success: true})
+}
+
+// handleRestart handles POST /restart - restarts the terminal.
+func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "method not allowed"})
+		return
+	}
+
+	var req RestartRequest
+	json.NewDecoder(r.Body).Decode(&req)
+	defer r.Body.Close()
+
+	if err := s.term.Restart(req.Command); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
 		return

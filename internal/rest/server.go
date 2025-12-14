@@ -31,6 +31,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/screen/text", corsMiddleware(s.handleScreenText))
 	mux.HandleFunc("/status", corsMiddleware(s.handleStatus))
 	mux.HandleFunc("/resize", corsMiddleware(s.handleResize))
+	mux.HandleFunc("/restart", corsMiddleware(s.handleRestart))
 
 	addr := fmt.Sprintf(":%d", s.port)
 	return http.ListenAndServe(addr, mux)

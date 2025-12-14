@@ -296,6 +296,36 @@ func (t *Terminal) Close() error {
 	return nil
 }
 
+// Restart closes and restarts the terminal, optionally with a new command.
+// If command is empty, uses the existing shell command.
+func (t *Terminal) Restart(command string) error {
+	// Close existing browser and ttyd
+	if t.browser != nil {
+		t.browser.MustClose()
+		t.browser = nil
+	}
+	if t.cmd != nil && t.cmd.Process != nil {
+		t.cmd.Process.Kill()
+		t.cmd.Wait()
+		t.cmd = nil
+	}
+	t.page = nil
+
+	// Update command if provided
+	if command != "" {
+		t.shell = command
+	}
+
+	// Find new port (old one may still be releasing)
+	port, err := findFreePort()
+	if err != nil {
+		return fmt.Errorf("failed to find free port: %w", err)
+	}
+	t.port = port
+
+	return t.Start()
+}
+
 // Status returns terminal status information.
 func (t *Terminal) Status() (rows, cols int, ready bool) {
 	ready = t.page != nil

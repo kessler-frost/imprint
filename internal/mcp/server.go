@@ -101,6 +101,16 @@ func (s *Server) registerTools(mcpServer *server.MCPServer) {
 		),
 	)
 	mcpServer.AddTool(resizeTool, s.handleResize)
+
+	// Tool: restart_terminal
+	restartTool := mcp.NewTool(
+		"restart_terminal",
+		mcp.WithDescription("Restart the terminal to reflect code changes. Optionally specify a new command to run."),
+		mcp.WithString("command",
+			mcp.Description("Optional new command to run (e.g., './my-tui-app'). If omitted, restarts with the same command."),
+		),
+	)
+	mcpServer.AddTool(restartTool, s.handleRestart)
 }
 
 // handleSendKey handles the send_keystroke tool call.
@@ -182,4 +192,20 @@ func (s *Server) handleResize(ctx context.Context, request mcp.CallToolRequest) 
 	}
 
 	return mcp.NewToolResultText(fmt.Sprintf("Terminal resized to %dx%d", rows, cols)), nil
+}
+
+// handleRestart handles the restart_terminal tool call.
+func (s *Server) handleRestart(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	command := request.GetString("command", "")
+
+	err := s.term.Restart(command)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to restart terminal: %v", err)), nil
+	}
+
+	msg := "Terminal restarted successfully"
+	if command != "" {
+		msg = fmt.Sprintf("Terminal restarted with command: %s", command)
+	}
+	return mcp.NewToolResultText(msg), nil
 }
