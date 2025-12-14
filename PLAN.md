@@ -1,6 +1,8 @@
 # Imprint Implementation Plan
 
-**Goal**: Build an agent-controllable terminal emulator with both REST API and MCP server interfaces.
+**Goal**: Build an agent-controllable terminal emulator with both REST API and MCP server interfaces. Agents can request a screenshot of the terminal at any time, giving them pixel-perfect visibility into exactly what a user would see.
+
+This lets agents test like real users do—interacting with the terminal and seeing what's actually on screen, regardless of how the app was built. TUI testing becomes framework-agnostic, allowing you to test any terminal application without needing to learn or use its internal testing strategies.
 
 ## Architecture
 

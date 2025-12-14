@@ -4,7 +4,11 @@ Agent-controllable terminal emulator with REST API and MCP server interfaces.
 
 ## Overview
 
-Imprint provides a real terminal that AI agents can control programmatically. It uses:
+Imprint provides a real terminal that AI agents can control programmatically. Agents can request a screenshot of the terminal at any time, giving them pixel-perfect visibility into exactly what a user would see.
+
+This lets agents test like real users do—interacting with the terminal and seeing what's actually on screen, regardless of how the app was built. TUI testing becomes framework-agnostic, allowing you to test any terminal application without needing to learn or use its internal testing strategies.
+
+**How it works:**
 - **ttyd**: Web terminal daemon exposing a real PTY via WebSocket
 - **go-rod**: Headless Chrome automation for keyboard input and screenshots
 - **xterm.js**: Terminal emulator running in Chrome for pixel-perfect rendering
