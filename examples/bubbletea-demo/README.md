@@ -34,6 +34,8 @@ requests.post("http://localhost:8080/keystroke", json={"key": "enter"})
 requests.post("http://localhost:8080/keystroke", json={"key": "j"})
 requests.post("http://localhost:8080/keystroke", json={"key": "space"})
 
-# Get screen
+# Get screen as text (use /screen for PNG screenshot)
 print(requests.get("http://localhost:8080/screen/text").text)
 ```
+
+This example uses `/screen/text` since the TUI is text-based and doesn't rely on colors for meaning. Use `/screen` (PNG) when you need to verify colors or visual styling.
