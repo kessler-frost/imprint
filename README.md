@@ -80,16 +80,16 @@ imprint --help
 
 ## MCP Server (Claude Code)
 
-Add imprint as an MCP server using the `/mcp` command in Claude Code:
+Add imprint as an MCP server:
 
-```
-/mcp add imprint -- imprint
+```bash
+claude mcp add imprint -- imprint
 ```
 
 With custom terminal size:
 
-```
-/mcp add imprint -- imprint --rows 30 --cols 120
+```bash
+claude mcp add imprint -- imprint --rows 30 --cols 120
 ```
 
 ### Available Tools

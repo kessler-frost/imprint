@@ -209,19 +209,17 @@ var keyMap = map[string]input.Key{
 
 ## MCP Configuration (Claude Code)
 
-Add imprint as an MCP server using the `/mcp` command:
+Add imprint as an MCP server:
 
-```
-/mcp add imprint -- imprint
+```bash
+claude mcp add imprint -- imprint
 ```
 
 With custom terminal size:
 
+```bash
+claude mcp add imprint -- imprint --rows 30 --cols 120
 ```
-/mcp add imprint -- imprint --rows 30 --cols 120
-```
-
-Then AI agents can use the terminal tools directly.
 
 ---
 

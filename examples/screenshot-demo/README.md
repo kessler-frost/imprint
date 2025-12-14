@@ -41,8 +41,8 @@ go build -o screenshot-demo
 
 Add imprint as an MCP server:
 
-```
-/mcp add imprint -- imprint
+```bash
+claude mcp add imprint -- imprint
 ```
 
 Then use Claude Code to interact with the demo:
