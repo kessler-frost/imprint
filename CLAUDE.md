@@ -22,6 +22,15 @@ When adding new dependencies, check for the latest version first using `go list 
 - Use `pathlib` equivalent patterns when dealing with file/directory paths
 - Keep code simple and focused on the task at hand
 
+## Examples
+
+Build examples with their proper binary names:
+```bash
+go build -o examples/screenshot-demo/screenshot-demo ./examples/screenshot-demo
+go build -o examples/text-demo/text-demo ./examples/text-demo
+go build -o examples/what-changed/what-changed ./examples/what-changed
+```
+
 ## Plan Implementation
 
 When implementing plans, **always use multiple agents in parallel** where tasks are independent:

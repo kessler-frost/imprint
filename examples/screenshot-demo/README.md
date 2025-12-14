@@ -33,8 +33,8 @@ These bugs look correct in the source code but render incorrectly in the termina
 
 ```bash
 go mod tidy
-go build -o demo
-./demo
+go build -o screenshot-demo
+./screenshot-demo
 ```
 
 ## Testing with Imprint
@@ -46,7 +46,7 @@ You can test this demo using Imprint's screenshot endpoint:
 imprint
 
 # In another terminal, run the demo
-./demo
+./screenshot-demo
 
 # Use Imprint's get_screenshot to capture the visual output
 # The screenshot will reveal:

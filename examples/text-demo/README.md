@@ -5,13 +5,13 @@ A minimal [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI for testi
 ## Build
 
 ```bash
-go build -o demo
+go build -o text-demo
 ```
 
 ## Run
 
 ```bash
-./demo
+./text-demo
 ```
 
 ## Controls
@@ -27,7 +27,7 @@ go build -o demo
 import requests
 
 # Type and run the demo
-requests.post("http://localhost:8080/type", json={"text": "./demo"})
+requests.post("http://localhost:8080/type", json={"text": "./text-demo"})
 requests.post("http://localhost:8080/keystroke", json={"key": "enter"})
 
 # Navigate and select

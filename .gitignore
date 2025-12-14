@@ -1,3 +1,5 @@
 bin/
 /imprint
-examples/*/demo
+examples/screenshot-demo/screenshot-demo
+examples/text-demo/text-demo
+examples/what-changed/what-changed
