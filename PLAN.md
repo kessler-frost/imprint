@@ -308,6 +308,65 @@ imprint --port 8080
 
 ## Future Enhancements (Post-v1)
 
-- Stream terminal in browser (web-based terminal viewer)
-- Multiple terminal sessions
-- Linux/Windows support improvements
+### TUI Testing Tools (High Priority)
+
+- **`wait_for_text` tool** - Block until specific text appears on screen with configurable timeout. Eliminates fragile sleep-based timing in test scripts.
+
+- **`wait_for_stable` tool** - Wait until the screen stops changing. Essential for handling animations, async rendering, and loading states.
+
+- **Screenshot diffing** - Compare current screen against a baseline image. Returns diff percentage and highlighted diff image for visual regression testing.
+
+- **Mouse support** - Enable mouse interactions for modern TUIs:
+  - `click(x, y)` - Click at coordinates
+  - `scroll(direction, amount)` - Scroll up/down
+  - `drag(from_x, from_y, to_x, to_y)` - Drag operations
+
+### TUI Testing Tools (Medium Priority)
+
+- **`get_cursor_position` tool** - Return current cursor row/col. Useful for verifying cursor placement in editors and input fields.
+
+- **Clipboard support** - `set_clipboard(text)` and `get_clipboard()` for testing copy/paste workflows.
+
+- **Text region extraction** - `get_text_region(row_start, col_start, row_end, col_end)` to extract text from specific screen areas.
+
+- **ANSI color extraction** - Option to return text with color/style metadata (foreground, background, bold, etc.) for testing color schemes and themes.
+
+- **Recording mode** - Record all inputs and screenshots during a session for replay or test script generation:
+  - `start_recording()` → session_id
+  - `stop_recording(session_id)` → {inputs: [...], screenshots: [...]}
+
+### TUI Testing Tools (Nice-to-Have)
+
+- **Built-in assertion helpers** - Structured pass/fail assertions in MCP:
+  - `assert_text_contains("Success")` → {passed: true}
+  - `assert_text_matches(/Error: \d+/)` → {passed: false, actual: "..."}
+
+- **Environment variable injection** - Pass env vars to terminal process for testing different configurations without restart.
+
+- **Test fixtures/scenarios** - Built-in commands to set up common TUI states (scrollable list, form with inputs, etc.).
+
+### Core Improvements (High Priority)
+
+- **Concurrency safety** - Add mutex synchronization around terminal operations. Both REST and MCP servers share the same Terminal instance without coordination.
+
+- **Graceful error handling** - Replace panic-prone `Must*()` calls with proper error returns. Improves reliability in long-running daemon mode.
+
+- **Unit tests** - Add test coverage for key mapping logic, text extraction, and REST handlers.
+
+- **Configurable timing** - Make ttyd startup wait time configurable via flag/env var instead of hard-coded 500ms.
+
+### Core Improvements (Medium Priority)
+
+- **Health endpoint** - Add `/health` or `/ready` endpoint for orchestration and monitoring.
+
+- **Structured logging** - Add log levels (debug, info, warn, error) to help diagnose production issues.
+
+- **Multiple terminal sessions** - Support multiple concurrent terminal instances for parallel test execution.
+
+### Platform & Infrastructure
+
+- **Stream terminal in browser** - Web-based terminal viewer for debugging and demos.
+
+- **Linux/Windows support improvements** - Better cross-platform compatibility, especially for daemon mode.
+
+- **Configurable screenshot format** - Allow choosing between JPEG (smaller) and PNG (lossless) per request.
