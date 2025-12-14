@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "imprint-local": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/plugins/imprint-hooks"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "imprint-hooks@imprint-local": true
+  }
+}
