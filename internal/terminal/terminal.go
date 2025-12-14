@@ -92,12 +92,12 @@ func findFreePort() (int, error) {
 
 // Start launches the terminal session.
 func (t *Terminal) Start() error {
-	// Start ttyd process
+	// Start ttyd process with login interactive shell
 	t.cmd = exec.Command("ttyd",
 		"--port", fmt.Sprintf("%d", t.port),
 		"--interface", "127.0.0.1",
 		"--writable",
-		t.shell,
+		t.shell, "-l", "-i",
 	)
 
 	err := t.cmd.Start()
