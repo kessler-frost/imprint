@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/kessler-frost/imprint)](https://goreportcard.com/report/github.com/kessler-frost/imprint)
 [![License](https://img.shields.io/github/license/kessler-frost/imprint)](LICENSE)
 
-Agent-controllable terminal emulator with REST API and MCP server interfaces.
+Lets AI agents control a real terminal and see exactly what's on screen with builtin REST API + MCP server. Allows framework-agnostic TUI testing.
 
 ## Overview
 
