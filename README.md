@@ -147,31 +147,6 @@ flowchart TB
     Claude["Claude Code"] -->|"JSON-RPC over stdio"| MCP
 ```
 
-## Development
-
-### Claude Code Plugin
-
-This project includes a local Claude Code plugin (`imprint-hooks`) that enforces build conventions during development.
-
-**Setup (one-time):**
-
-```bash
-# From the imprint project directory, add the local marketplace
-/plugin marketplace add /path/to/imprint
-
-# Install the plugin
-/plugin install imprint-hooks@imprint-local
-```
-
-**Available Commands:**
-
-- `/imprint-hooks:setup-hooks` - Creates hookify rules in `.claude/` that enforce:
-  - Correct build output path (`go build -o bin/imprint`)
-  - Proper example binary naming
-  - Version checking before `go get`
-  - Build verification after Go file changes
-  - Parallel agent suggestions for implementation tasks
-
 ## License
 
 Apache 2.0

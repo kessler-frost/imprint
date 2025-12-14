@@ -47,15 +47,15 @@ go build -o what-changed .
 This game is designed to be played by an AI agent using imprint's MCP tools:
 
 ```
-1. type_text("./what-changed") + send_keystroke("enter")  # Launch game
-2. get_screenshot()                                        # See BEFORE grid
-3. send_keystroke("space")                                 # Advance to AFTER
-4. get_screenshot()                                        # See AFTER grid
+1. type_text("./what-changed") + send_keystrokes(["enter"])  # Launch game
+2. get_screenshot()                                          # See BEFORE grid
+3. send_keystrokes(["space"])                                # Advance to AFTER
+4. get_screenshot()                                          # See AFTER grid
 5. Compare the two screenshots to find the changed cell
-6. Navigate to the changed cell using send_keystroke("up/down/left/right")
-7. send_keystroke("enter")                                 # Submit answer
-8. get_screenshot() or get_screen_text()                   # Check result (SUCCESS/FAIL)
-9. send_keystroke("q")                                     # Quit
+6. Navigate to the changed cell using send_keystrokes(["up"]) etc.
+7. send_keystrokes(["enter"])                                # Submit answer
+8. get_screenshot() or get_screen_text()                     # Check result (SUCCESS/FAIL)
+9. send_keystrokes(["q"])                                    # Quit
 ```
 
 **Total screenshots needed: 2** (minimum for any visual comparison task)
@@ -65,6 +65,6 @@ This game is designed to be played by an AI agent using imprint's MCP tools:
 | Capability | Usage |
 |------------|-------|
 | `get_screenshot` | See grid colors (2 screenshots total) |
-| `send_keystroke` | Navigate, submit, advance phase |
+| `send_keystrokes` | Navigate, submit, advance phase |
 | `get_screen_text` | Parse result message |
 | `type_text` | Launch the game |

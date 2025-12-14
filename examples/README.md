@@ -10,7 +10,7 @@ See [screenshot-demo/README.md](screenshot-demo/README.md) for details.
 
 ## text-demo
 
-A minimal Bubble Tea TUI for testing imprint's `get_screen_text` endpoint. Demonstrates vim-style navigation (j/k) and selection.
+A minimal Bubble Tea TUI for testing imprint's `get_screen_text` tool. Demonstrates vim-style navigation (j/k) and selection.
 
 See [text-demo/README.md](text-demo/README.md) for details.
 

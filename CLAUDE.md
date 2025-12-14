@@ -51,6 +51,9 @@ All tools are defined in `internal/mcp/server.go`:
 - `type_text` - Type text into terminal textarea
 - `get_screenshot` - JPEG screenshot via Chrome
 - `get_screen_text` - Extract text via xterm.js buffer API
+- `get_status` - Get terminal rows, cols, ready state
+- `resize_terminal` - Resize terminal dimensions
+- `restart_terminal` - Restart with optional new command
 - `wait_for_text` / `wait_for_stable` - Polling helpers for test synchronization
 
 ## Key Mappings
