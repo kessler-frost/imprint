@@ -9,56 +9,7 @@ Create the following hookify rules in `.claude/` directory. These rules enforce 
 
 ## Rules to Create
 
-### 1. `.claude/hookify.block-imprint-build-location.local.md`
-
-```markdown
----
-name: block-imprint-build-location
-enabled: true
-event: bash
-action: block
-conditions:
-  - field: command
-    operator: regex_match
-    pattern: go build.*/cmd/imprint
-  - field: command
-    operator: not_contains
-    pattern: -o bin/imprint
----
-
-**Incorrect build output location!**
-
-The imprint binary must be built to `bin/imprint`.
-
-Use: `go build -o bin/imprint ./cmd/imprint`
-```
-
-### 2. `.claude/hookify.block-example-build-names.local.md`
-
-```markdown
----
-name: block-example-build-names
-enabled: true
-event: bash
-action: block
-conditions:
-  - field: command
-    operator: regex_match
-    pattern: go build.*\./examples/
-  - field: command
-    operator: not_contains
-    pattern: -o examples/
----
-
-**Example binary must have proper name!**
-
-Build examples with matching binary names:
-- `go build -o examples/screenshot-demo/screenshot-demo ./examples/screenshot-demo`
-- `go build -o examples/text-demo/text-demo ./examples/text-demo`
-- `go build -o examples/what-changed/what-changed ./examples/what-changed`
-```
-
-### 3. `.claude/hookify.block-go-dependency-version.local.md`
+### 1. `.claude/hookify.block-go-dependency-version.local.md`
 
 ```markdown
 ---
@@ -80,7 +31,7 @@ Before running `go get`, first check the latest version:
 Then add the specific version you want.
 ```
 
-### 4. `.claude/hookify.warn-parallel-agents.local.md`
+### 2. `.claude/hookify.warn-parallel-agents.local.md`
 
 ```markdown
 ---
