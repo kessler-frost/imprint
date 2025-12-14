@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/kessler-frost/imprint)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/kessler-frost/imprint)](https://github.com/kessler-frost/imprint/releases)
 
-Lets AI agents control a real terminal and see exactly what's on screen via MCP. Framework-agnostic TUI testing.
+Lets AI agents control a real terminal and see exactly what's on screen via MCP allowing framework-agnostic TUI testing.
 
 ## Overview
 
