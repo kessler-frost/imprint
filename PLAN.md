@@ -8,6 +8,7 @@ This lets agents test like real users do—interacting with the terminal and see
 
 Imprint uses a headless browser approach for pixel-perfect terminal rendering:
 - **ttyd**: Web terminal daemon that exposes a real PTY via WebSocket
+- **tmux**: Terminal multiplexer enabling session sharing (AI + user browser see same terminal)
 - **go-rod**: Headless Chrome automation for keyboard input + screenshots
 - **xterm.js**: Terminal emulator running in Chrome (renders the PTY)
 
@@ -16,13 +17,16 @@ flowchart TB
     subgraph imprint
         MCP["MCP Server<br/>(stdio)"]
         TM["Terminal Manager<br/>(go-rod + ttyd)"]
+        TMUX["tmux session<br/>(shared terminal)"]
         TTY["ttyd + Chrome/xterm<br/>(real PTY + render)"]
 
         MCP --> TM
         TM --> TTY
+        TTY --> TMUX
     end
 
     Claude["Claude Code"] -->|"JSON-RPC over stdio"| MCP
+    Browser["Your Browser"] -->|"WebSocket via ttyd"| TMUX
 ```
 
 ## Interface
@@ -34,6 +38,7 @@ Tools exposed to AI agents:
 - `get_screenshot` - Get screen as base64 JPEG
 - `get_screen_text` - Get screen as plain text
 - `get_status` - Get terminal status
+- `get_ttyd_url` - Get URL to view terminal in browser (same session as AI)
 - `resize_terminal` - Resize the terminal
 - `restart_terminal` - Restart with optional new command
 - `wait_for_text` - Wait for text to appear (polling)
@@ -43,6 +48,7 @@ Tools exposed to AI agents:
 
 **External (must be installed):**
 - ttyd (terminal sharing daemon)
+- tmux (terminal multiplexer for session sharing)
 - Chrome/Chromium (auto-downloaded by go-rod)
 
 **Go dependencies:**
@@ -62,11 +68,16 @@ imprint/
 │       └── main.go           # CLI entry point
 ├── internal/
 │   ├── terminal/
-│   │   └── terminal.go       # Terminal manager (ttyd + go-rod)
+│   │   └── terminal.go       # Terminal manager (ttyd + tmux + go-rod)
 │   └── mcp/
 │       └── server.go         # MCP server + tools
+├── examples/
+│   ├── screenshot-demo/      # Visual TUI demo (colors, visual bugs)
+│   ├── text-demo/            # Simple text-based TUI
+│   └── what-changed/         # Visual memory game
 ├── go.mod
 ├── go.sum
+├── install.sh                # Installation script (imprint, ttyd, tmux)
 ├── LICENSE                   # Apache 2.0
 ├── README.md
 └── PLAN.md
@@ -96,13 +107,14 @@ Core terminal control using ttyd + go-rod:
 
 ```go
 type Terminal struct {
-    browser *rod.Browser
-    page    *rod.Page
-    cmd     *exec.Cmd  // ttyd process
-    port    int
-    rows    int
-    cols    int
-    mu      sync.RWMutex
+    browser     *rod.Browser
+    page        *rod.Page
+    cmd         *exec.Cmd  // ttyd process
+    port        int
+    rows        int
+    cols        int
+    mu          sync.RWMutex
+    tmuxSession string     // Unique tmux session name for session sharing
 }
 
 func New(shell string, rows, cols int) (*Terminal, error)
@@ -115,16 +127,19 @@ func (t *Terminal) Resize(rows, cols int) error
 func (t *Terminal) Restart(command string) error
 func (t *Terminal) WaitForText(text string, timeoutMs int) (int, bool, error)
 func (t *Terminal) WaitForStable(timeoutMs, stableMs int) (int, bool, error)
+func (t *Terminal) GetTtydUrl() string
 func (t *Terminal) Close() error
 ```
 
 **Key implementation details:**
-- Start ttyd with: `ttyd --port {port} --interface 127.0.0.1 --writable {shell}`
+- Start ttyd with: `ttyd --port {port} --interface 127.0.0.1 --writable tmux new-session -A -s {session} {shell}`
+- The `-A` flag attaches to existing tmux session or creates new one, enabling session sharing
 - Connect go-rod browser to `http://127.0.0.1:{port}`
 - Use `page.Keyboard.Press()` for special keys
 - Use `page.MustElement("textarea").Input()` for text
 - Use `page.Screenshot()` for capture (JPEG format)
 - Extract text via JavaScript eval on xterm.js buffer
+- Users can view the same terminal session in browser via `GetTtydUrl()`
 
 ---
 
@@ -147,6 +162,7 @@ func (s *Server) Start() error  // Blocks on stdio
 // - get_screenshot(quality?: int) -> base64 JPEG
 // - get_screen_text() -> string
 // - get_status() -> {rows, cols, ready}
+// - get_ttyd_url() -> string (URL to view terminal in browser)
 // - resize_terminal(rows: int, cols: int)
 // - restart_terminal(command?: string)
 // - wait_for_text(text: string, timeout_ms?: int) -> {elapsed_ms, found}
@@ -247,8 +263,12 @@ Claude: [Uses type_text, send_keystrokes, and get_screenshot tools automatically
 ## Installation
 
 ```bash
+# Easy install (downloads imprint, installs ttyd and tmux)
+curl -fsSL https://raw.githubusercontent.com/kessler-frost/imprint/main/install.sh | sh
+
+# Or manual installation:
 # Install dependencies (macOS)
-brew install ttyd
+brew install ttyd tmux
 
 # Install imprint
 go install github.com/kessler-frost/imprint/cmd/imprint@latest
@@ -296,9 +316,13 @@ imprint
 
 ### Core Improvements (High Priority)
 
-- **Graceful error handling** - Replace panic-prone `Must*()` calls with proper error returns. Improves reliability.
+- **Comprehensive tests** - Add thorough test coverage including:
+  - Unit tests for key mapping logic and text extraction
+  - Integration tests for MCP handlers
+  - End-to-end tests for terminal operations
+  - Session sharing verification tests
 
-- **Unit tests** - Add test coverage for key mapping logic, text extraction, and MCP handlers.
+- **Graceful error handling** - Replace panic-prone `Must*()` calls with proper error returns. Improves reliability.
 
 - **Configurable timing** - Make ttyd startup wait time configurable via flag/env var instead of hard-coded 500ms.
 
@@ -310,6 +334,4 @@ imprint
 
 ### Platform & Infrastructure
 
-- **Stream terminal in browser** - Web-based terminal viewer for debugging and demos.
-
-- **Linux/Windows support improvements** - Better cross-platform compatibility.
+- ~~**Stream terminal in browser**~~ - ✅ IMPLEMENTED via tmux session sharing and `get_ttyd_url` tool. Users can watch AI control the terminal in real-time.
