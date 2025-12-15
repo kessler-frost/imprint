@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/kessler-frost/imprint)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/kessler-frost/imprint)](https://github.com/kessler-frost/imprint/releases)
 
-Lets AI agents control a real terminal and see exactly what's on screen via MCP allowing framework-agnostic TUI testing.
+Lets AI agents control a real terminal and see exactly what's on screen via MCP, allowing framework-agnostic TUI testing.
 
 ## Overview
 
@@ -134,6 +134,9 @@ This demonstrates why `get_screenshot` is valuable - some things can only be ver
 
 ### text-demo
 A simple text-based TUI using ASCII characters. Good for testing `get_screen_text` and basic keyboard navigation.
+
+### what-changed
+A visual memory game designed to showcase imprint's screenshot capabilities. The game displays a grid of colored cells, then changes one cell - the player must identify which cell changed. Perfect for testing an AI agent's ability to detect visual differences between screenshots.
 
 ## Architecture
 
