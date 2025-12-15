@@ -15,6 +15,7 @@ This lets agents test like real users do—interacting with the terminal and see
 
 **How it works:**
 - **ttyd**: Web terminal daemon exposing a real PTY via WebSocket
+- **tmux**: Terminal multiplexer enabling session sharing between AI and user
 - **go-rod**: Headless Chrome automation for keyboard input and screenshots
 - **xterm.js**: Terminal emulator running in Chrome for pixel-perfect rendering
 
@@ -24,6 +25,7 @@ This lets agents test like real users do—interacting with the terminal and see
 - **Real Terminal**: Actual shell execution, not simulation
 - **Pixel-Perfect Screenshots**: Exactly what you'd see in a real terminal
 - **Framework Agnostic**: Test any TUI application without framework-specific tooling
+- **Live Session Sharing**: Watch the AI control the terminal in real-time from your browser
 
 ## Installation
 
@@ -31,7 +33,7 @@ This lets agents test like real users do—interacting with the terminal and see
 curl -fsSL https://raw.githubusercontent.com/kessler-frost/imprint/main/install.sh | sh
 ```
 
-This installs imprint and its dependency ttyd (if not already installed).
+This installs imprint and its dependencies (ttyd and tmux) if not already installed.
 
 ### Uninstall
 
@@ -43,16 +45,16 @@ curl -fsSL https://raw.githubusercontent.com/kessler-frost/imprint/main/install.
 
 If you prefer manual installation:
 
-1. Install ttyd:
+1. Install ttyd and tmux:
    ```bash
    # macOS
-   brew install ttyd
+   brew install ttyd tmux
 
    # Ubuntu/Debian
-   sudo apt install ttyd
+   sudo apt install ttyd tmux
 
    # Arch Linux
-   sudo pacman -S ttyd
+   sudo pacman -S ttyd tmux
    ```
 
 2. Download imprint from [releases](https://github.com/kessler-frost/imprint/releases) or:
@@ -99,10 +101,25 @@ claude mcp add imprint -- ~/.local/bin/imprint --rows 30 --cols 120
 - `get_screenshot` - Get screen as base64 JPEG
 - `get_screen_text` - Get screen as plain text
 - `get_status` - Get terminal status
+- `get_ttyd_url` - Get URL to view terminal in browser (same session as AI)
 - `resize_terminal` - Resize the terminal
 - `restart_terminal` - Restart the terminal (optionally with a new command)
 - `wait_for_text` - Wait for text to appear on screen (5s default timeout)
 - `wait_for_stable` - Wait for screen to stop changing (500ms stable duration)
+
+## Watch AI in Real-Time
+
+One of imprint's unique features is the ability to watch the AI agent control the terminal live in your browser. Both you and the AI share the same tmux session.
+
+**To view the terminal:**
+1. Ask the AI to call `get_ttyd_url`
+2. Open the returned URL (e.g., `http://127.0.0.1:55529`) in your browser
+3. Watch as the AI types commands and navigates the terminal
+
+You can also interact with the terminal from your browser - the AI will see your changes in real-time. This is useful for:
+- **Debugging**: See exactly what the AI sees
+- **Collaboration**: Help the AI when it gets stuck
+- **Demos**: Show others how AI agents interact with terminals
 
 ## Examples
 
@@ -125,14 +142,19 @@ flowchart TB
     subgraph imprint
         MCP["MCP Server<br/>(stdio)"]
         TM["Terminal Manager<br/>(go-rod + ttyd)"]
+        TMUX["tmux session<br/>(shared terminal)"]
         TTY["ttyd + Chrome/xterm<br/>(real PTY + render)"]
 
         MCP --> TM
         TM --> TTY
+        TTY --> TMUX
     end
 
     Claude["Claude Code"] -->|"JSON-RPC over stdio"| MCP
+    Browser["Your Browser"] -->|"WebSocket via ttyd"| TMUX
 ```
+
+The AI and your browser connect to the same tmux session, enabling real-time collaboration.
 
 ## License
 

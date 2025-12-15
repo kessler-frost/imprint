@@ -16,14 +16,15 @@ import (
 
 // Terminal manages a real terminal session via ttyd and headless Chrome.
 type Terminal struct {
-	mu      sync.RWMutex
-	browser *rod.Browser
-	page    *rod.Page
-	cmd     *exec.Cmd
-	port    int
-	shell   string
-	rows    int
-	cols    int
+	mu          sync.RWMutex
+	browser     *rod.Browser
+	page        *rod.Page
+	cmd         *exec.Cmd
+	port        int
+	shell       string
+	rows        int
+	cols        int
+	tmuxSession string // Unique tmux session name for session sharing
 }
 
 // keyMap maps key names to go-rod input.Key constants
@@ -76,10 +77,11 @@ func New(shell string, rows, cols int) (*Terminal, error) {
 	}
 
 	return &Terminal{
-		port:  port,
-		shell: shell,
-		rows:  rows,
-		cols:  cols,
+		port:        port,
+		shell:       shell,
+		rows:        rows,
+		cols:        cols,
+		tmuxSession: fmt.Sprintf("imprint_%d", port),
 	}, nil
 }
 
@@ -103,11 +105,13 @@ func (t *Terminal) Start() error {
 // startUnlocked launches the terminal session without acquiring the lock.
 // Caller must hold the lock.
 func (t *Terminal) startUnlocked() error {
-	// Start ttyd process with login interactive shell
+	// Start ttyd process with tmux session for session sharing
+	// The -A flag attaches to existing session or creates new one
 	t.cmd = exec.Command("ttyd",
 		"--port", fmt.Sprintf("%d", t.port),
 		"--interface", "127.0.0.1",
 		"--writable",
+		"tmux", "new-session", "-A", "-s", t.tmuxSession,
 		t.shell, "-l", "-i",
 	)
 
@@ -439,6 +443,11 @@ func (t *Terminal) Close() error {
 		t.cmd.Wait()
 	}
 
+	// Kill tmux session
+	if t.tmuxSession != "" {
+		exec.Command("tmux", "kill-session", "-t", t.tmuxSession).Run()
+	}
+
 	return nil
 }
 
@@ -460,6 +469,11 @@ func (t *Terminal) Restart(command string) error {
 	}
 	t.page = nil
 
+	// Kill old tmux session
+	if t.tmuxSession != "" {
+		exec.Command("tmux", "kill-session", "-t", t.tmuxSession).Run()
+	}
+
 	// Update command if provided
 	if command != "" {
 		t.shell = command
@@ -472,6 +486,9 @@ func (t *Terminal) Restart(command string) error {
 	}
 	t.port = port
 
+	// Generate new tmux session name
+	t.tmuxSession = fmt.Sprintf("imprint_%d", port)
+
 	return t.startUnlocked()
 }
 
@@ -481,4 +498,11 @@ func (t *Terminal) Status() (rows, cols int, ready bool) {
 	defer t.mu.RUnlock()
 	ready = t.page != nil
 	return t.rows, t.cols, ready
+}
+
+// GetTtydUrl returns the URL to access the terminal via web browser.
+func (t *Terminal) GetTtydUrl() string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return fmt.Sprintf("http://127.0.0.1:%d", t.port)
 }

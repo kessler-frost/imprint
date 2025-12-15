@@ -38,6 +38,26 @@ if [ "$UNINSTALL" = true ]; then
       ;;
   esac
 
+  printf "Remove tmux as well? [y/N] "
+  read -r response
+  case "$response" in
+    [yY][eE][sS]|[yY])
+      OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+      case $OS in
+        darwin)
+          echo "Uninstalling tmux via Homebrew..."
+          brew uninstall tmux 2>/dev/null && echo "tmux uninstalled" || echo "tmux not found in Homebrew"
+          ;;
+        linux)
+          echo "Please manually remove tmux using your package manager"
+          ;;
+      esac
+      ;;
+    *)
+      echo "Keeping tmux installed"
+      ;;
+  esac
+
   echo "Uninstall complete!"
   exit 0
 fi
@@ -84,6 +104,35 @@ if ! command -v ttyd >/dev/null 2>&1; then
   esac
 else
   echo "ttyd already installed: $(command -v ttyd)"
+fi
+
+# Check/install tmux
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "tmux not found. Installing..."
+
+  case $OS in
+    darwin)
+      command -v brew >/dev/null 2>&1 || { echo "Error: Homebrew required but not installed. Visit https://brew.sh"; exit 1; }
+      brew install tmux
+      ;;
+    linux)
+      if command -v apt >/dev/null 2>&1; then
+        echo "Installing tmux via apt..."
+        sudo apt update && sudo apt install -y tmux
+      elif command -v pacman >/dev/null 2>&1; then
+        echo "Installing tmux via pacman..."
+        sudo pacman -S --noconfirm tmux
+      elif command -v dnf >/dev/null 2>&1; then
+        echo "Installing tmux via dnf..."
+        sudo dnf install -y tmux
+      else
+        echo "Error: Could not detect package manager. Please install tmux manually."
+        exit 1
+      fi
+      ;;
+  esac
+else
+  echo "tmux already installed: $(command -v tmux)"
 fi
 
 # Get latest imprint release

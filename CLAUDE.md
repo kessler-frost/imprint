@@ -32,10 +32,11 @@ cd examples/what-changed && go build && ./what-changed
 Imprint lets AI agents control a real terminal via MCP. The stack:
 
 ```
-Claude Code → MCP (stdio) → Terminal Manager → ttyd + headless Chrome/xterm.js
+Claude Code → MCP (stdio) → Terminal Manager → ttyd + tmux + headless Chrome/xterm.js
 ```
 
 - **ttyd**: Web terminal daemon exposing a real PTY via WebSocket
+- **tmux**: Terminal multiplexer enabling session sharing (AI + user browser see same session)
 - **go-rod**: Headless Chrome automation for keyboard input and screenshots
 - **xterm.js**: Terminal emulator in Chrome for pixel-perfect rendering
 
@@ -52,9 +53,19 @@ All tools are defined in `internal/mcp/server.go`:
 - `get_screenshot` - JPEG screenshot via Chrome
 - `get_screen_text` - Extract text via xterm.js buffer API
 - `get_status` - Get terminal rows, cols, ready state
+- `get_ttyd_url` - Get URL to view terminal in browser (shares tmux session)
 - `resize_terminal` - Resize terminal dimensions
 - `restart_terminal` - Restart with optional new command
 - `wait_for_text` / `wait_for_stable` - Polling helpers for test synchronization
+
+## Session Sharing
+
+Users can watch the AI control the terminal in real-time:
+1. Call `get_ttyd_url` to get the terminal URL
+2. User opens URL in browser - sees the same tmux session
+3. Both AI and user can interact with the terminal simultaneously
+
+This is enabled by tmux - each imprint instance creates a unique tmux session (e.g., `imprint_55529`) that both headless Chrome and the user's browser connect to.
 
 ## Key Mappings
 
@@ -66,4 +77,5 @@ Key handling is in `internal/terminal/terminal.go`:
 ## Dependencies
 
 - **ttyd** must be installed (`brew install ttyd` on macOS)
+- **tmux** must be installed (`brew install tmux` on macOS)
 - Chrome is auto-downloaded by go-rod on first run

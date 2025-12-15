@@ -141,6 +141,13 @@ func (s *Server) registerTools(mcpServer *server.MCPServer) {
 		),
 	)
 	mcpServer.AddTool(waitStableTool, s.handleWaitForStable)
+
+	// Tool: get_ttyd_url
+	ttydUrlTool := mcp.NewTool(
+		"get_ttyd_url",
+		mcp.WithDescription("Get the ttyd web terminal URL for viewing the terminal in a browser"),
+	)
+	mcpServer.AddTool(ttydUrlTool, s.handleGetTtydUrl)
 }
 
 // handleSendKeys handles the send_keystrokes tool call.
@@ -278,4 +285,10 @@ func (s *Server) handleWaitForStable(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultText(fmt.Sprintf("Screen stable after %dms", elapsedMs)), nil
 	}
 	return mcp.NewToolResultText(fmt.Sprintf("Timeout after %dms", elapsedMs)), nil
+}
+
+// handleGetTtydUrl handles the get_ttyd_url tool call.
+func (s *Server) handleGetTtydUrl(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	url := s.term.GetTtydUrl()
+	return mcp.NewToolResultText(url), nil
 }
