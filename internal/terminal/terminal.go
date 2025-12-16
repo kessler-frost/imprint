@@ -105,15 +105,26 @@ func (t *Terminal) Start() error {
 // startUnlocked launches the terminal session without acquiring the lock.
 // Caller must hold the lock.
 func (t *Terminal) startUnlocked() error {
-	// Start ttyd process with tmux session for session sharing
+	// Build ttyd command with tmux session for session sharing
 	// The -A flag attaches to existing session or creates new one
-	t.cmd = exec.Command("ttyd",
+	// The -2 flag forces 256-color mode for consistent colors across terminals
+	args := []string{
 		"--port", fmt.Sprintf("%d", t.port),
 		"--interface", "127.0.0.1",
 		"--writable",
-		"tmux", "new-session", "-A", "-s", t.tmuxSession,
-		t.shell, "-l", "-i",
-	)
+		"tmux", "-2", "new-session", "-A", "-s", t.tmuxSession,
+	}
+
+	// Check if this is a shell path (like /bin/zsh) or a complex command
+	if strings.HasPrefix(t.shell, "/") && !strings.Contains(t.shell, " ") {
+		// Simple shell path - run as interactive login shell
+		args = append(args, t.shell, "-l", "-i")
+	} else {
+		// Complex command - wrap in sh -c for proper shell syntax handling
+		args = append(args, "sh", "-c", t.shell)
+	}
+
+	t.cmd = exec.Command("ttyd", args...)
 
 	err := t.cmd.Start()
 	if err != nil {
@@ -479,15 +490,11 @@ func (t *Terminal) Restart(command string) error {
 		t.shell = command
 	}
 
-	// Find new port (old one may still be releasing)
-	port, err := findFreePort()
-	if err != nil {
-		return fmt.Errorf("failed to find free port: %w", err)
-	}
-	t.port = port
+	// Keep the same port - wait for it to be released
+	time.Sleep(100 * time.Millisecond)
 
-	// Generate new tmux session name
-	t.tmuxSession = fmt.Sprintf("imprint_%d", port)
+	// Generate new tmux session name (use timestamp to ensure uniqueness)
+	t.tmuxSession = fmt.Sprintf("imprint_%d_%d", t.port, time.Now().UnixNano()%100000)
 
 	return t.startUnlocked()
 }
@@ -505,4 +512,11 @@ func (t *Terminal) GetTtydUrl() string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return fmt.Sprintf("http://127.0.0.1:%d", t.port)
+}
+
+// GetTmuxSession returns the tmux session name.
+func (t *Terminal) GetTmuxSession() string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.tmuxSession
 }

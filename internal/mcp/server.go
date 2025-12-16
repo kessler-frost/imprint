@@ -290,5 +290,7 @@ func (s *Server) handleWaitForStable(ctx context.Context, request mcp.CallToolRe
 // handleGetTtydUrl handles the get_ttyd_url tool call.
 func (s *Server) handleGetTtydUrl(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	url := s.term.GetTtydUrl()
-	return mcp.NewToolResultText(url), nil
+	session := s.term.GetTmuxSession()
+	result := fmt.Sprintf("Web: %s\nTerminal: tmux attach -t %s", url, session)
+	return mcp.NewToolResultText(result), nil
 }

@@ -6,6 +6,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"syscall"
 
 	"github.com/kessler-frost/imprint/internal/mcp"
 	"github.com/kessler-frost/imprint/internal/terminal"
@@ -24,6 +27,12 @@ func main() {
 		fmt.Printf("imprint version %s\n", Version)
 		os.Exit(0)
 	}
+
+	lockFile, err := acquireLock()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	defer lockFile.Close()
 
 	term, err := terminal.New(*shell, *rows, *cols)
 	if err != nil {
@@ -54,4 +63,37 @@ func getDefaultShell() string {
 		return shell
 	}
 	return "/bin/bash"
+}
+
+func getLockFilePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".imprint.lock")
+}
+
+func acquireLock() (*os.File, error) {
+	lockPath := getLockFilePath()
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open lock file: %w", err)
+	}
+
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		// Check if another instance is running
+		pidBytes := make([]byte, 32)
+		n, _ := f.Read(pidBytes)
+		f.Close()
+		if n > 0 {
+			return nil, fmt.Errorf("another imprint instance is already running (PID: %s)", string(pidBytes[:n]))
+		}
+		return nil, fmt.Errorf("another imprint instance is already running")
+	}
+
+	// Write our PID
+	f.Truncate(0)
+	f.Seek(0, 0)
+	f.WriteString(strconv.Itoa(os.Getpid()))
+	f.Sync()
+
+	return f, nil
 }
