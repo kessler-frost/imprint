@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <em>Lets AI agents control a real terminal and see exactly what's on screen via MCP, allowing framework-agnostic TUI testing.</em>
+  <em>Lets AI agents control a terminal and see exactly what's on screen via MCP, allowing framework-agnostic TUI testing.</em>
 </p>
 
 ## Overview
