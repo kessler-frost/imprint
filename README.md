@@ -109,7 +109,7 @@ claude mcp add imprint -- ~/.local/bin/imprint --rows 30 --cols 120
 - `get_screenshot` - Get screen as base64 JPEG
 - `get_screen_text` - Get screen as plain text
 - `get_status` - Get terminal status
-- `get_ttyd_url` - Get URL to view terminal in browser (same session as AI)
+- `get_ttyd_url` - Get web URL and tmux attach command to view the terminal the agent is using
 - `resize_terminal` - Resize the terminal
 - `restart_terminal` - Restart the terminal (optionally with a new command)
 - `wait_for_text` - Wait for text to appear on screen (5s default timeout)
@@ -121,7 +121,9 @@ One of imprint's unique features is the ability to watch the AI agent control th
 
 **To view the terminal:**
 1. Ask the AI to call `get_ttyd_url`
-2. Open the returned URL (e.g., `http://127.0.0.1:55529`) in your browser
+2. Connect via either method:
+   - **Browser**: Open the web URL (e.g., `http://127.0.0.1:55529`)
+   - **Terminal**: Run the tmux attach command (e.g., `tmux attach -t imprint_55529`)
 3. Watch as the AI types commands and navigates the terminal
 
 You can also interact with the terminal from your browser - the AI will see your changes in real-time. This is useful for:
