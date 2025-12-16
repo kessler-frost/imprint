@@ -1,11 +1,19 @@
-# Imprint
+<h1 align="center">imprint</h1>
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/kessler-frost/imprint.svg)](https://pkg.go.dev/github.com/kessler-frost/imprint)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kessler-frost/imprint?style=flat)](https://goreportcard.com/report/github.com/kessler-frost/imprint)
-[![License](https://img.shields.io/github/license/kessler-frost/imprint)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/kessler-frost/imprint)](https://github.com/kessler-frost/imprint/releases)
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/kessler-frost/imprint"><img src="https://pkg.go.dev/badge/github.com/kessler-frost/imprint.svg" alt="Go Reference"></a>
+  <a href="https://goreportcard.com/report/github.com/kessler-frost/imprint"><img src="https://goreportcard.com/badge/github.com/kessler-frost/imprint?style=flat" alt="Go Report Card"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/kessler-frost/imprint" alt="License"></a>
+  <a href="https://github.com/kessler-frost/imprint/releases"><img src="https://img.shields.io/github/v/release/kessler-frost/imprint" alt="Release"></a>
+</p>
 
-Lets AI agents control a real terminal and see exactly what's on screen via MCP, allowing framework-agnostic TUI testing.
+<p align="center">
+  <img src="examples/demo.gif" alt="Imprint Demo" width="1200">
+</p>
+
+<p align="center">
+  <em>Lets AI agents control a real terminal and see exactly what's on screen via MCP, allowing framework-agnostic TUI testing.</em>
+</p>
 
 ## Overview
 
