@@ -169,6 +169,10 @@ flowchart TB
 
 The AI and your browser connect to the same tmux session, enabling real-time collaboration.
 
+## Contributing
+
+Contributions are welcome! I work on imprint in my free time, so responses may take a while, but I appreciate all PRs and issues.
+
 ## License
 
 Apache 2.0
