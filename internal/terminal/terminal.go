@@ -7,11 +7,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/rivo/uniseg"
 )
 
 // Terminal manages a real terminal session via ttyd and headless Chrome.
@@ -58,8 +61,10 @@ var keyMap = map[string]input.Key{
 	"f12":       input.F12,
 }
 
-// letterKeyMap maps single letters to their input.Key constants
-var letterKeyMap = map[rune]input.Key{
+// characterKeyMap maps characters to input.Key constants for modifier combos.
+// Used by sendCtrlKey, sendAltKey, sendShiftKey for physical keyboard simulation.
+var characterKeyMap = map[rune]input.Key{
+	// Letters
 	'a': input.KeyA, 'b': input.KeyB, 'c': input.KeyC, 'd': input.KeyD,
 	'e': input.KeyE, 'f': input.KeyF, 'g': input.KeyG, 'h': input.KeyH,
 	'i': input.KeyI, 'j': input.KeyJ, 'k': input.KeyK, 'l': input.KeyL,
@@ -67,6 +72,14 @@ var letterKeyMap = map[rune]input.Key{
 	'q': input.KeyQ, 'r': input.KeyR, 's': input.KeyS, 't': input.KeyT,
 	'u': input.KeyU, 'v': input.KeyV, 'w': input.KeyW, 'x': input.KeyX,
 	'y': input.KeyY, 'z': input.KeyZ,
+	// Digits
+	'0': input.Digit0, '1': input.Digit1, '2': input.Digit2, '3': input.Digit3,
+	'4': input.Digit4, '5': input.Digit5, '6': input.Digit6, '7': input.Digit7,
+	'8': input.Digit8, '9': input.Digit9,
+	// Punctuation
+	'/': input.Slash, '\\': input.Backslash, '.': input.Period, ',': input.Comma,
+	';': input.Semicolon, '\'': input.Quote, '[': input.BracketLeft, ']': input.BracketRight,
+	'-': input.Minus, '=': input.Equal, '`': input.Backquote,
 }
 
 // New creates a new Terminal instance.
@@ -162,7 +175,36 @@ func (t *Terminal) SendKey(key string) error {
 // sendKeyUnlocked sends a keystroke without acquiring the lock.
 // Caller must hold the lock.
 func (t *Terminal) sendKeyUnlocked(key string) error {
-	key = strings.ToLower(key)
+	rawKey := key
+	switch rawKey {
+	case "\n", "\r":
+		return t.page.Keyboard.Type(input.Enter)
+	case "\t":
+		return t.page.Keyboard.Type(input.Tab)
+	case " ":
+		return t.page.Keyboard.Type(input.Space)
+	}
+
+	if !utf8.ValidString(rawKey) {
+		return fmt.Errorf("invalid utf-8 key: %q", rawKey)
+	}
+
+	if isSingleGrapheme(rawKey) {
+		if !isPrintableString(rawKey) {
+			return fmt.Errorf("non-printable key: %q", rawKey)
+		}
+
+		// Single printable grapheme - send directly via term.input().
+		// This bypasses keyboard simulation, handling any printable character.
+		_, err := t.page.Eval(fmt.Sprintf(`() => {
+			const term = window.term;
+			if (!term) throw new Error("terminal not initialized");
+			term.input(%q);
+		}`, rawKey))
+		return err
+	}
+
+	key = strings.ToLower(rawKey)
 
 	// Handle modifier combinations like "ctrl+c"
 	parts := strings.Split(key, "+")
@@ -187,15 +229,28 @@ func (t *Terminal) sendKeyUnlocked(key string) error {
 		return t.page.Keyboard.Type(k)
 	}
 
-	// Single letter key
-	if len(key) == 1 {
-		char := rune(key[0])
-		if k, ok := letterKeyMap[char]; ok {
-			return t.page.Keyboard.Type(k)
+	return fmt.Errorf("unknown key: %s", rawKey)
+}
+
+func isPrintableString(s string) bool {
+	for _, r := range s {
+		if !unicode.IsPrint(r) {
+			return false
 		}
 	}
+	return true
+}
 
-	return fmt.Errorf("unknown key: %s", key)
+func isSingleGrapheme(s string) bool {
+	graphemes := uniseg.NewGraphemes(s)
+	count := 0
+	for graphemes.Next() {
+		count++
+		if count > 1 {
+			return false
+		}
+	}
+	return count == 1
 }
 
 // SendKeys sends multiple keystrokes to the terminal.
@@ -224,7 +279,7 @@ func (t *Terminal) sendCtrlKey(key string) error {
 		targetKey = k
 	} else if len(key) == 1 {
 		char := rune(key[0])
-		if k, ok := letterKeyMap[char]; ok {
+		if k, ok := characterKeyMap[char]; ok {
 			targetKey = k
 		} else {
 			return fmt.Errorf("unknown key: %s", key)
@@ -245,7 +300,7 @@ func (t *Terminal) sendAltKey(key string) error {
 		targetKey = k
 	} else if len(key) == 1 {
 		char := rune(key[0])
-		if k, ok := letterKeyMap[char]; ok {
+		if k, ok := characterKeyMap[char]; ok {
 			targetKey = k
 		} else {
 			return fmt.Errorf("unknown key: %s", key)
@@ -266,7 +321,7 @@ func (t *Terminal) sendShiftKey(key string) error {
 		targetKey = k
 	} else if len(key) == 1 {
 		char := rune(key[0])
-		if k, ok := letterKeyMap[char]; ok {
+		if k, ok := characterKeyMap[char]; ok {
 			targetKey = k
 		} else {
 			return fmt.Errorf("unknown key: %s", key)
