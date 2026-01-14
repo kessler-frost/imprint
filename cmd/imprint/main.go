@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/kessler-frost/imprint/internal/mcp"
 	"github.com/kessler-frost/imprint/internal/terminal"
@@ -36,17 +37,22 @@ func main() {
 	defer term.Close()
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	mcpServer := mcp.New(term)
+	done := make(chan struct{})
 	go func() {
 		if err := mcpServer.Start(); err != nil {
-			log.Fatalf("MCP server error: %v", err)
+			log.Printf("MCP server error: %v", err)
 		}
+		close(done)
 	}()
 
-	<-sigChan
-	fmt.Fprintln(os.Stderr, "\nShutting down...")
+	select {
+	case <-sigChan:
+	case <-done:
+	}
+	fmt.Fprintln(os.Stderr, "Shutting down...")
 }
 
 func getDefaultShell() string {
