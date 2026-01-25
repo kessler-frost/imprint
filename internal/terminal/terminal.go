@@ -184,14 +184,14 @@ func (t *Terminal) sendKeyUnlocked(key string) error {
 
 	// Single key press - check special keys first
 	if k, ok := keyMap[key]; ok {
-		return t.page.Keyboard.Press(k)
+		return t.page.Keyboard.Type(k)
 	}
 
 	// Single letter key
 	if len(key) == 1 {
 		char := rune(key[0])
 		if k, ok := letterKeyMap[char]; ok {
-			return t.page.Keyboard.Press(k)
+			return t.page.Keyboard.Type(k)
 		}
 	}
 
@@ -288,9 +288,19 @@ func (t *Terminal) Type(text string) error {
 		return fmt.Errorf("terminal not ready")
 	}
 
-	// Find the terminal's textarea element and input text
-	textarea := t.page.MustElement("textarea")
-	return textarea.Input(text)
+	// Write directly to xterm.js via term.input() instead of DOM events.
+	//
+	// xterm.js ignores DOM InputEvents when its internal _keyDownSeen flag is set.
+	// Since SendKey() triggers keyboard events that may leave this flag in an
+	// unpredictable state, Type() must bypass the DOM entirely. The term.input()
+	// API writes directly to xterm's input buffer, avoiding this constraint.
+	_, err := t.page.Eval(fmt.Sprintf(`() => {
+		const term = window.term;
+		if (!term) throw new Error("terminal not initialized");
+		term.input(%q);
+	}`, text))
+
+	return err
 }
 
 // Screenshot captures the current screen as JPEG with the specified quality (0-100).
