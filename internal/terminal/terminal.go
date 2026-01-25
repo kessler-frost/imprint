@@ -61,8 +61,11 @@ var keyMap = map[string]input.Key{
 	"f12":       input.F12,
 }
 
-// characterKeyMap maps characters to input.Key constants for modifier combos.
-// Used by sendCtrlKey, sendAltKey, sendShiftKey for physical keyboard simulation.
+// characterKeyMap maps characters to input.Key constants for modifier combinations.
+// Used by sendCtrlKey, sendAltKey, sendShiftKey which require physical keyboard simulation
+// via go-rod's KeyActions API. Single printable characters without modifiers bypass this
+// map entirely and are sent directly via xterm's term.input() API to support Unicode,
+// emoji, and grapheme clusters that can't be mapped to physical keys.
 var characterKeyMap = map[rune]input.Key{
 	// Letters
 	'a': input.KeyA, 'b': input.KeyB, 'c': input.KeyC, 'd': input.KeyD,
@@ -174,43 +177,74 @@ func (t *Terminal) SendKey(key string) error {
 
 // sendKeyUnlocked sends a keystroke without acquiring the lock.
 // Caller must hold the lock.
+//
+// The function routes input through three paths:
+//  1. Literal control characters (\n, \r, \t, space) → keyboard simulation
+//  2. Single printable graphemes → xterm's term.input() for Unicode/emoji support
+//  3. Named keys and modifier combos → keyboard simulation via keyMap/characterKeyMap
 func (t *Terminal) sendKeyUnlocked(key string) error {
+	if key == "" {
+		return fmt.Errorf("key cannot be empty")
+	}
+
 	rawKey := key
+
+	// Path 1: Literal control character aliases
 	switch rawKey {
 	case "\n", "\r":
-		return t.page.Keyboard.Type(input.Enter)
+		if err := t.page.Keyboard.Type(input.Enter); err != nil {
+			return fmt.Errorf("failed to send enter: %w", err)
+		}
+		return nil
 	case "\t":
-		return t.page.Keyboard.Type(input.Tab)
+		if err := t.page.Keyboard.Type(input.Tab); err != nil {
+			return fmt.Errorf("failed to send tab: %w", err)
+		}
+		return nil
 	case " ":
-		return t.page.Keyboard.Type(input.Space)
+		if err := t.page.Keyboard.Type(input.Space); err != nil {
+			return fmt.Errorf("failed to send space: %w", err)
+		}
+		return nil
 	}
 
 	if !utf8.ValidString(rawKey) {
 		return fmt.Errorf("invalid utf-8 key: %q", rawKey)
 	}
 
+	// Path 2: Single printable graphemes (Unicode, emoji, combined characters)
+	// These bypass keyboard simulation because they can't be mapped to physical keys.
+	// Using xterm's term.input() API writes directly to the terminal buffer.
 	if isSingleGrapheme(rawKey) {
 		if !isPrintableString(rawKey) {
 			return fmt.Errorf("non-printable key: %q", rawKey)
 		}
 
-		// Single printable grapheme - send directly via term.input().
-		// This bypasses keyboard simulation, handling any printable character.
 		_, err := t.page.Eval(fmt.Sprintf(`() => {
 			const term = window.term;
-			if (!term) throw new Error("terminal not initialized");
+			if (!term || typeof term.input !== 'function') {
+				throw new Error("terminal not initialized");
+			}
 			term.input(%q);
 		}`, rawKey))
-		return err
+		if err != nil {
+			return fmt.Errorf("failed to send key %q: %w", rawKey, err)
+		}
+		return nil
 	}
 
+	// Path 3: Named keys and modifier combinations
 	key = strings.ToLower(rawKey)
 
-	// Handle modifier combinations like "ctrl+c"
+	// Handle modifier combinations like "ctrl+c", "alt+f", "shift+tab"
 	parts := strings.Split(key, "+")
 	if len(parts) == 2 {
 		modifier := parts[0]
 		mainKey := parts[1]
+
+		if mainKey == "" {
+			return fmt.Errorf("incomplete modifier combination: %q (missing key after +)", rawKey)
+		}
 
 		switch modifier {
 		case "ctrl":
@@ -220,13 +254,20 @@ func (t *Terminal) sendKeyUnlocked(key string) error {
 		case "shift":
 			return t.sendShiftKey(mainKey)
 		default:
-			return fmt.Errorf("unknown modifier: %s", modifier)
+			return fmt.Errorf("unknown modifier %q in: %s", modifier, rawKey)
 		}
 	}
 
-	// Single key press - check special keys first
+	if len(parts) > 2 {
+		return fmt.Errorf("invalid key format (multiple + signs): %s", rawKey)
+	}
+
+	// Single named key press
 	if k, ok := keyMap[key]; ok {
-		return t.page.Keyboard.Type(k)
+		if err := t.page.Keyboard.Type(k); err != nil {
+			return fmt.Errorf("failed to send key %q: %w", rawKey, err)
+		}
+		return nil
 	}
 
 	return fmt.Errorf("unknown key: %s", rawKey)
@@ -271,67 +312,61 @@ func (t *Terminal) SendKeys(keys []string) error {
 	return nil
 }
 
-// sendCtrlKey sends a Ctrl+key combination
+// sendCtrlKey sends a Ctrl+key combination.
+// Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendCtrlKey(key string) error {
-	var targetKey input.Key
-
-	if k, ok := keyMap[key]; ok {
-		targetKey = k
-	} else if len(key) == 1 {
-		char := rune(key[0])
-		if k, ok := characterKeyMap[char]; ok {
-			targetKey = k
-		} else {
-			return fmt.Errorf("unknown key: %s", key)
-		}
-	} else {
-		return fmt.Errorf("unknown key: %s", key)
+	targetKey, err := t.resolveTargetKey(key)
+	if err != nil {
+		return fmt.Errorf("ctrl+%s: %w", key, err)
 	}
 
-	// Use KeyActions for modifier combinations
-	return t.page.KeyActions().Press(input.ControlLeft).Type(targetKey).Do()
+	if err := t.page.KeyActions().Press(input.ControlLeft).Type(targetKey).Do(); err != nil {
+		return fmt.Errorf("failed to send ctrl+%s: %w", key, err)
+	}
+	return nil
 }
 
-// sendAltKey sends an Alt+key combination
+// sendAltKey sends an Alt+key combination.
+// Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendAltKey(key string) error {
-	var targetKey input.Key
-
-	if k, ok := keyMap[key]; ok {
-		targetKey = k
-	} else if len(key) == 1 {
-		char := rune(key[0])
-		if k, ok := characterKeyMap[char]; ok {
-			targetKey = k
-		} else {
-			return fmt.Errorf("unknown key: %s", key)
-		}
-	} else {
-		return fmt.Errorf("unknown key: %s", key)
+	targetKey, err := t.resolveTargetKey(key)
+	if err != nil {
+		return fmt.Errorf("alt+%s: %w", key, err)
 	}
 
-	// Use KeyActions for modifier combinations
-	return t.page.KeyActions().Press(input.AltLeft).Type(targetKey).Do()
+	if err := t.page.KeyActions().Press(input.AltLeft).Type(targetKey).Do(); err != nil {
+		return fmt.Errorf("failed to send alt+%s: %w", key, err)
+	}
+	return nil
 }
 
-// sendShiftKey sends a Shift+key combination
+// sendShiftKey sends a Shift+key combination.
+// Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendShiftKey(key string) error {
-	var targetKey input.Key
-
-	if k, ok := keyMap[key]; ok {
-		targetKey = k
-	} else if len(key) == 1 {
-		char := rune(key[0])
-		if k, ok := characterKeyMap[char]; ok {
-			targetKey = k
-		} else {
-			return fmt.Errorf("unknown key: %s", key)
-		}
-	} else {
-		return fmt.Errorf("unknown key: %s", key)
+	targetKey, err := t.resolveTargetKey(key)
+	if err != nil {
+		return fmt.Errorf("shift+%s: %w", key, err)
 	}
 
-	// Use KeyActions for modifier combinations
-	return t.page.KeyActions().Press(input.ShiftLeft).Type(targetKey).Do()
+	if err := t.page.KeyActions().Press(input.ShiftLeft).Type(targetKey).Do(); err != nil {
+		return fmt.Errorf("failed to send shift+%s: %w", key, err)
+	}
+	return nil
+}
+
+// resolveTargetKey converts a key name to an input.Key constant.
+// Checks keyMap first for named keys, then characterKeyMap for single characters.
+func (t *Terminal) resolveTargetKey(key string) (input.Key, error) {
+	if k, ok := keyMap[key]; ok {
+		return k, nil
+	}
+	if len(key) == 1 {
+		char := rune(key[0])
+		if k, ok := characterKeyMap[char]; ok {
+			return k, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown key: %s", key)
 }
 
 // Type types a string of characters.

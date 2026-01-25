@@ -197,8 +197,9 @@ func testSendKeyCharacters(t *testing.T) {
 		}
 	}
 
-	flagUS := "\U0001F1FA\U0001F1F8"
-	outputSamples := []string{"A", "5", ".", "+", "中", "é", flagUS}
+	// Lightning bolt emoji - tests grapheme handling
+	lightning := "⚡"
+	outputSamples := []string{"A", "5", ".", "+", "中", "é", lightning}
 	for _, key := range outputSamples {
 		resetTerminal(t)
 		if err := testTerminal.Type("printf '%s\\n' "); err != nil {
@@ -244,19 +245,26 @@ func testSendKeyAliases(t *testing.T) {
 }
 
 // testSendKeyErrors verifies SendKey() returns errors for invalid input.
+// Tests empty strings, unknown keys, malformed modifiers, and non-printable characters.
 func testSendKeyErrors(t *testing.T) {
-	errorCases := []string{
-		"",       // empty string
-		"foobar", // unknown key name
-		"ctrl+",  // incomplete modifier
-		"++a",    // malformed
-		"\x00",   // non-printable
+	errorCases := []struct {
+		key  string
+		desc string
+	}{
+		{"", "empty string"},
+		{"foobar", "unknown key name"},
+		{"ctrl+", "incomplete modifier (missing key)"},
+		{"++a", "malformed (multiple + at start)"},
+		{"ctrl+alt+a", "multiple modifiers (not supported)"},
+		{"\x00", "non-printable (null)"},
+		{"\x1b", "non-printable (escape byte)"},
+		{"ab", "multiple graphemes"},
 	}
 
-	for _, key := range errorCases {
-		err := testTerminal.SendKey(key)
+	for _, tc := range errorCases {
+		err := testTerminal.SendKey(tc.key)
 		if err == nil {
-			t.Errorf("SendKey(%q): expected error, got nil", key)
+			t.Errorf("SendKey(%q) [%s]: expected error, got nil", tc.key, tc.desc)
 		}
 	}
 }
