@@ -11,6 +11,9 @@ permissions:
 jobs:
   check-and-release:
     runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,6 +35,7 @@ jobs:
           fi
 
       - name: Create and push tag
+        id: tag
         if: steps.check.outputs.has_changes == 'true'
         run: |
           git config user.name "github-actions[bot]"
@@ -39,3 +43,13 @@ jobs:
           TAG=$(date +%Y.%m.%d)
           git tag -f $TAG
           git push -f origin $TAG
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+  call-release:
+    needs: check-and-release
+    if: needs.check-and-release.outputs.has_changes == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.check-and-release.outputs.tag }}
+    permissions:
+      contents: write
