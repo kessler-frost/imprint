@@ -315,7 +315,7 @@ func (t *Terminal) SendKeys(keys []string) error {
 // sendCtrlKey sends a Ctrl+key combination.
 // Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendCtrlKey(key string) error {
-	targetKey, err := t.resolveTargetKey(key)
+	targetKey, err := resolveTargetKey(key)
 	if err != nil {
 		return fmt.Errorf("ctrl+%s: %w", key, err)
 	}
@@ -329,7 +329,7 @@ func (t *Terminal) sendCtrlKey(key string) error {
 // sendAltKey sends an Alt+key combination.
 // Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendAltKey(key string) error {
-	targetKey, err := t.resolveTargetKey(key)
+	targetKey, err := resolveTargetKey(key)
 	if err != nil {
 		return fmt.Errorf("alt+%s: %w", key, err)
 	}
@@ -343,7 +343,7 @@ func (t *Terminal) sendAltKey(key string) error {
 // sendShiftKey sends a Shift+key combination.
 // Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendShiftKey(key string) error {
-	targetKey, err := t.resolveTargetKey(key)
+	targetKey, err := resolveTargetKey(key)
 	if err != nil {
 		return fmt.Errorf("shift+%s: %w", key, err)
 	}
@@ -356,7 +356,7 @@ func (t *Terminal) sendShiftKey(key string) error {
 
 // resolveTargetKey converts a key name to an input.Key constant.
 // Checks keyMap first for named keys, then characterKeyMap for single characters.
-func (t *Terminal) resolveTargetKey(key string) (input.Key, error) {
+func resolveTargetKey(key string) (input.Key, error) {
 	if k, ok := keyMap[key]; ok {
 		return k, nil
 	}
