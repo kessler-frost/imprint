@@ -52,6 +52,9 @@ func TestTerminal(t *testing.T) {
 		{"TypeAfterCommandExecution", testTypeAfterCommandExecution},
 		{"TypeUnicode", testTypeUnicode},
 		{"SendKeyAfterSendKey", testSendKeyAfterSendKey},
+		{"SendKeyCharacters", testSendKeyCharacters},
+		{"SendKeyAliases", testSendKeyAliases},
+		{"SendKeyErrors", testSendKeyErrors},
 		{"TypeAfterModifierKey", testTypeAfterModifierKey},
 		{"TypeAfterSendKeys", testTypeAfterSendKeys},
 	}
@@ -147,6 +150,140 @@ func testSendKeyAfterSendKey(t *testing.T) {
 	if count < 2 {
 		t.Errorf("Expected 'sendkey_test' at least twice, found %d times. Screen:\n%s", count, screen)
 	}
+}
+
+// testSendKeyCharacters verifies SendKey() accepts various character types:
+// special keys, letters, digits, punctuation, and Unicode (including grapheme clusters).
+func testSendKeyCharacters(t *testing.T) {
+	samples := []struct {
+		key     string
+		wantErr bool
+	}{
+		// Special keys (regression)
+		{"enter", false},
+		{"tab", false},
+		{"escape", false},
+		{"up", false},
+		{"down", false},
+		{"backspace", false},
+		{"space", false},
+		// Letters (regression)
+		{"a", false},
+		{"z", false},
+		{"A", false},
+		// Digits (new)
+		{"0", false},
+		{"5", false},
+		{"9", false},
+		// Punctuation (new)
+		{"/", false},
+		{".", false},
+		{",", false},
+		{"+", false},
+		{"[", false},
+		{"]", false},
+		{"-", false},
+		// Unicode (new)
+		{"中", false},
+		{"é", false},
+		// Literal space (should work like "space")
+		{" ", false},
+	}
+
+	for _, s := range samples {
+		err := testTerminal.SendKey(s.key)
+		if (err != nil) != s.wantErr {
+			t.Errorf("SendKey(%q): got error %v, wantErr %v", s.key, err, s.wantErr)
+		}
+	}
+
+	// Lightning bolt emoji - tests grapheme handling
+	lightning := "⚡"
+	outputSamples := []string{"A", "5", ".", "+", "中", "é", lightning}
+	for _, key := range outputSamples {
+		resetTerminal(t)
+		if err := testTerminal.Type("printf '%s\\n' "); err != nil {
+			t.Fatalf("Type(printf) failed: %v", err)
+		}
+		if err := testTerminal.SendKey(key); err != nil {
+			t.Fatalf("SendKey(%q) failed: %v", key, err)
+		}
+		if err := testTerminal.SendKey("enter"); err != nil {
+			t.Fatalf("SendKey(enter) failed: %v", err)
+		}
+		testTerminal.WaitForStable(1000, 100)
+		assertOutputLine(t, key)
+	}
+}
+
+// testSendKeyAliases verifies literal control characters behave like their named keys.
+func testSendKeyAliases(t *testing.T) {
+	if err := testTerminal.SendKey("\t"); err != nil {
+		t.Fatalf("SendKey(\\t) failed: %v", err)
+	}
+
+	if err := testTerminal.Type("printf '%s\\n' '"); err != nil {
+		t.Fatalf("Type(printf) failed: %v", err)
+	}
+	if err := testTerminal.SendKey("A"); err != nil {
+		t.Fatalf("SendKey(A) failed: %v", err)
+	}
+	if err := testTerminal.SendKey(" "); err != nil {
+		t.Fatalf("SendKey(space) failed: %v", err)
+	}
+	if err := testTerminal.SendKey("B"); err != nil {
+		t.Fatalf("SendKey(B) failed: %v", err)
+	}
+	if err := testTerminal.SendKey("'"); err != nil {
+		t.Fatalf("SendKey(') failed: %v", err)
+	}
+	if err := testTerminal.SendKey("\n"); err != nil {
+		t.Fatalf("SendKey(\\n) failed: %v", err)
+	}
+	testTerminal.WaitForStable(1000, 100)
+	assertOutputLine(t, "A B")
+}
+
+// testSendKeyErrors verifies SendKey() returns errors for invalid input.
+// Tests empty strings, unknown keys, malformed modifiers, and non-printable characters.
+func testSendKeyErrors(t *testing.T) {
+	errorCases := []struct {
+		key  string
+		desc string
+	}{
+		{"", "empty string"},
+		{"foobar", "unknown key name"},
+		{"ctrl+", "incomplete modifier (missing key)"},
+		{"++a", "malformed (multiple + at start)"},
+		{"ctrl+alt+a", "multiple modifiers (not supported)"},
+		{"\x00", "non-printable (null)"},
+		{"\x1b", "non-printable (escape byte)"},
+		{"ab", "multiple graphemes"},
+	}
+
+	for _, tc := range errorCases {
+		err := testTerminal.SendKey(tc.key)
+		if err == nil {
+			t.Errorf("SendKey(%q) [%s]: expected error, got nil", tc.key, tc.desc)
+		}
+	}
+}
+
+func assertOutputLine(t *testing.T, expected string) {
+	t.Helper()
+
+	screen, err := testTerminal.GetText()
+	if err != nil {
+		t.Fatalf("GetText() failed: %v", err)
+	}
+
+	for _, line := range strings.Split(screen, "\n") {
+		if line == expected {
+			return
+		}
+	}
+
+	t.Errorf("Expected output line %q not found. Screen:\n%s", expected, screen)
 }
 
 // testTypeAfterModifierKey verifies Type() works after modifier key combinations.

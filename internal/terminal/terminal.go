@@ -7,11 +7,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/rivo/uniseg"
 )
 
 // Terminal manages a real terminal session via ttyd and headless Chrome.
@@ -58,8 +61,13 @@ var keyMap = map[string]input.Key{
 	"f12":       input.F12,
 }
 
-// letterKeyMap maps single letters to their input.Key constants
-var letterKeyMap = map[rune]input.Key{
+// characterKeyMap maps characters to input.Key constants for modifier combinations.
+// Used by sendCtrlKey, sendAltKey, sendShiftKey which require physical keyboard simulation
+// via go-rod's KeyActions API. Single printable characters without modifiers bypass this
+// map entirely and are sent directly via xterm's term.input() API to support Unicode,
+// emoji, and grapheme clusters that can't be mapped to physical keys.
+var characterKeyMap = map[rune]input.Key{
+	// Letters
 	'a': input.KeyA, 'b': input.KeyB, 'c': input.KeyC, 'd': input.KeyD,
 	'e': input.KeyE, 'f': input.KeyF, 'g': input.KeyG, 'h': input.KeyH,
 	'i': input.KeyI, 'j': input.KeyJ, 'k': input.KeyK, 'l': input.KeyL,
@@ -67,6 +75,14 @@ var letterKeyMap = map[rune]input.Key{
 	'q': input.KeyQ, 'r': input.KeyR, 's': input.KeyS, 't': input.KeyT,
 	'u': input.KeyU, 'v': input.KeyV, 'w': input.KeyW, 'x': input.KeyX,
 	'y': input.KeyY, 'z': input.KeyZ,
+	// Digits
+	'0': input.Digit0, '1': input.Digit1, '2': input.Digit2, '3': input.Digit3,
+	'4': input.Digit4, '5': input.Digit5, '6': input.Digit6, '7': input.Digit7,
+	'8': input.Digit8, '9': input.Digit9,
+	// Punctuation
+	'/': input.Slash, '\\': input.Backslash, '.': input.Period, ',': input.Comma,
+	';': input.Semicolon, '\'': input.Quote, '[': input.BracketLeft, ']': input.BracketRight,
+	'-': input.Minus, '=': input.Equal, '`': input.Backquote,
 }
 
 // New creates a new Terminal instance.
@@ -161,14 +177,74 @@ func (t *Terminal) SendKey(key string) error {
 
 // sendKeyUnlocked sends a keystroke without acquiring the lock.
 // Caller must hold the lock.
+//
+// The function routes input through three paths:
+//  1. Literal control characters (\n, \r, \t, space) → keyboard simulation
+//  2. Single printable graphemes → xterm's term.input() for Unicode/emoji support
+//  3. Named keys and modifier combos → keyboard simulation via keyMap/characterKeyMap
 func (t *Terminal) sendKeyUnlocked(key string) error {
-	key = strings.ToLower(key)
+	if key == "" {
+		return fmt.Errorf("key cannot be empty")
+	}
 
-	// Handle modifier combinations like "ctrl+c"
+	rawKey := key
+
+	// Path 1: Literal control character aliases
+	switch rawKey {
+	case "\n", "\r":
+		if err := t.page.Keyboard.Type(input.Enter); err != nil {
+			return fmt.Errorf("failed to send enter: %w", err)
+		}
+		return nil
+	case "\t":
+		if err := t.page.Keyboard.Type(input.Tab); err != nil {
+			return fmt.Errorf("failed to send tab: %w", err)
+		}
+		return nil
+	case " ":
+		if err := t.page.Keyboard.Type(input.Space); err != nil {
+			return fmt.Errorf("failed to send space: %w", err)
+		}
+		return nil
+	}
+
+	if !utf8.ValidString(rawKey) {
+		return fmt.Errorf("invalid utf-8 key: %q", rawKey)
+	}
+
+	// Path 2: Single printable graphemes (Unicode, emoji, combined characters)
+	// These bypass keyboard simulation because they can't be mapped to physical keys.
+	// Using xterm's term.input() API writes directly to the terminal buffer.
+	if isSingleGrapheme(rawKey) {
+		if !isPrintableString(rawKey) {
+			return fmt.Errorf("non-printable key: %q", rawKey)
+		}
+
+		_, err := t.page.Eval(fmt.Sprintf(`() => {
+			const term = window.term;
+			if (!term || typeof term.input !== 'function') {
+				throw new Error("terminal not initialized");
+			}
+			term.input(%q);
+		}`, rawKey))
+		if err != nil {
+			return fmt.Errorf("failed to send key %q: %w", rawKey, err)
+		}
+		return nil
+	}
+
+	// Path 3: Named keys and modifier combinations
+	key = strings.ToLower(rawKey)
+
+	// Handle modifier combinations like "ctrl+c", "alt+f", "shift+tab"
 	parts := strings.Split(key, "+")
 	if len(parts) == 2 {
 		modifier := parts[0]
 		mainKey := parts[1]
+
+		if mainKey == "" {
+			return fmt.Errorf("incomplete modifier combination: %q (missing key after +)", rawKey)
+		}
 
 		switch modifier {
 		case "ctrl":
@@ -178,24 +254,44 @@ func (t *Terminal) sendKeyUnlocked(key string) error {
 		case "shift":
 			return t.sendShiftKey(mainKey)
 		default:
-			return fmt.Errorf("unknown modifier: %s", modifier)
+			return fmt.Errorf("unknown modifier %q in: %s", modifier, rawKey)
 		}
 	}
 
-	// Single key press - check special keys first
+	if len(parts) > 2 {
+		return fmt.Errorf("invalid key format (multiple + signs): %s", rawKey)
+	}
+
+	// Single named key press
 	if k, ok := keyMap[key]; ok {
-		return t.page.Keyboard.Type(k)
+		if err := t.page.Keyboard.Type(k); err != nil {
+			return fmt.Errorf("failed to send key %q: %w", rawKey, err)
+		}
+		return nil
 	}
 
-	// Single letter key
-	if len(key) == 1 {
-		char := rune(key[0])
-		if k, ok := letterKeyMap[char]; ok {
-			return t.page.Keyboard.Type(k)
+	return fmt.Errorf("unknown key: %s", rawKey)
+}
+
+func isPrintableString(s string) bool {
+	for _, r := range s {
+		if !unicode.IsPrint(r) {
+			return false
 		}
 	}
+	return true
+}
 
-	return fmt.Errorf("unknown key: %s", key)
+func isSingleGrapheme(s string) bool {
+	graphemes := uniseg.NewGraphemes(s)
+	count := 0
+	for graphemes.Next() {
+		count++
+		if count > 1 {
+			return false
+		}
+	}
+	return count == 1
 }
 
 // SendKeys sends multiple keystrokes to the terminal.
@@ -216,67 +312,61 @@ func (t *Terminal) SendKeys(keys []string) error {
 	return nil
 }
 
-// sendCtrlKey sends a Ctrl+key combination
+// sendCtrlKey sends a Ctrl+key combination.
+// Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendCtrlKey(key string) error {
-	var targetKey input.Key
-
-	if k, ok := keyMap[key]; ok {
-		targetKey = k
-	} else if len(key) == 1 {
-		char := rune(key[0])
-		if k, ok := letterKeyMap[char]; ok {
-			targetKey = k
-		} else {
-			return fmt.Errorf("unknown key: %s", key)
-		}
-	} else {
-		return fmt.Errorf("unknown key: %s", key)
+	targetKey, err := resolveTargetKey(key)
+	if err != nil {
+		return fmt.Errorf("ctrl+%s: %w", key, err)
 	}
 
-	// Use KeyActions for modifier combinations
-	return t.page.KeyActions().Press(input.ControlLeft).Type(targetKey).Do()
+	if err := t.page.KeyActions().Press(input.ControlLeft).Type(targetKey).Do(); err != nil {
+		return fmt.Errorf("failed to send ctrl+%s: %w", key, err)
+	}
+	return nil
 }
 
-// sendAltKey sends an Alt+key combination
+// sendAltKey sends an Alt+key combination.
+// Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendAltKey(key string) error {
-	var targetKey input.Key
-
-	if k, ok := keyMap[key]; ok {
-		targetKey = k
-	} else if len(key) == 1 {
-		char := rune(key[0])
-		if k, ok := letterKeyMap[char]; ok {
-			targetKey = k
-		} else {
-			return fmt.Errorf("unknown key: %s", key)
-		}
-	} else {
-		return fmt.Errorf("unknown key: %s", key)
+	targetKey, err := resolveTargetKey(key)
+	if err != nil {
+		return fmt.Errorf("alt+%s: %w", key, err)
 	}
 
-	// Use KeyActions for modifier combinations
-	return t.page.KeyActions().Press(input.AltLeft).Type(targetKey).Do()
+	if err := t.page.KeyActions().Press(input.AltLeft).Type(targetKey).Do(); err != nil {
+		return fmt.Errorf("failed to send alt+%s: %w", key, err)
+	}
+	return nil
 }
 
-// sendShiftKey sends a Shift+key combination
+// sendShiftKey sends a Shift+key combination.
+// Uses go-rod's KeyActions API which handles press/release automatically via Do().
 func (t *Terminal) sendShiftKey(key string) error {
-	var targetKey input.Key
-
-	if k, ok := keyMap[key]; ok {
-		targetKey = k
-	} else if len(key) == 1 {
-		char := rune(key[0])
-		if k, ok := letterKeyMap[char]; ok {
-			targetKey = k
-		} else {
-			return fmt.Errorf("unknown key: %s", key)
-		}
-	} else {
-		return fmt.Errorf("unknown key: %s", key)
+	targetKey, err := resolveTargetKey(key)
+	if err != nil {
+		return fmt.Errorf("shift+%s: %w", key, err)
 	}
 
-	// Use KeyActions for modifier combinations
-	return t.page.KeyActions().Press(input.ShiftLeft).Type(targetKey).Do()
+	if err := t.page.KeyActions().Press(input.ShiftLeft).Type(targetKey).Do(); err != nil {
+		return fmt.Errorf("failed to send shift+%s: %w", key, err)
+	}
+	return nil
+}
+
+// resolveTargetKey converts a key name to an input.Key constant.
+// Checks keyMap first for named keys, then characterKeyMap for single characters.
+func resolveTargetKey(key string) (input.Key, error) {
+	if k, ok := keyMap[key]; ok {
+		return k, nil
+	}
+	if len(key) == 1 {
+		char := rune(key[0])
+		if k, ok := characterKeyMap[char]; ok {
+			return k, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown key: %s", key)
 }
 
 // Type types a string of characters.
