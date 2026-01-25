@@ -351,7 +351,9 @@ func (t *Terminal) Type(text string) error {
 	// API writes directly to xterm's input buffer, avoiding this constraint.
 	_, err := t.page.Eval(fmt.Sprintf(`() => {
 		const term = window.term;
-		if (!term) throw new Error("terminal not initialized");
+		if (!term || typeof term.input !== 'function') {
+			throw new Error("terminal not initialized");
+		}
 		term.input(%q);
 	}`, text))
 
