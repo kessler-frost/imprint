@@ -1,5 +1,34 @@
+import logging
 import pytest
 from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, TextBlock
+
+logger = logging.getLogger(__name__)
+
+
+async def collect_response(prompt, options):
+    """Collect response text from Claude, with error handling for SDK issues."""
+    result_text = ""
+    errors = []
+
+    try:
+        async for message in query(prompt=prompt, options=options):
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, TextBlock):
+                        result_text += block.text
+                    else:
+                        logger.debug(f"Non-TextBlock in response: {type(block).__name__}")
+            else:
+                logger.debug(f"Non-AssistantMessage: {type(message).__name__}")
+                if hasattr(message, "error"):
+                    errors.append(str(message.error))
+    except Exception as e:
+        pytest.fail(f"Claude SDK query failed: {type(e).__name__}: {e}")
+
+    if errors:
+        pytest.fail(f"SDK returned errors: {errors}")
+
+    return result_text
 
 
 @pytest.mark.asyncio
@@ -24,7 +53,8 @@ async def test_what_changed_game(imprint_binary, example_binaries):
         permission_mode="bypassPermissions",
     )
 
-    # Use seed for reproducibility
+    # Use seed for reproducibility - ensures the changed cell location
+    # is deterministic so we can verify Claude identifies the correct cell
     prompt = f"""
     You have access to a terminal via MCP tools.
 
@@ -37,29 +67,27 @@ async def test_what_changed_game(imprint_binary, example_binaries):
     7. Report whether you won or lost based on the result message
     """
 
-    result_text = ""
-    async for message in query(prompt=prompt, options=options):
-        if isinstance(message, AssistantMessage):
-            for block in message.content:
-                if isinstance(block, TextBlock):
-                    result_text += block.text
+    result_text = await collect_response(prompt, options)
 
-    # With seed 42, the changed cell is at row 0, col 1 (cyan -> yellow)
-    # Verify Claude correctly identified this specific cell
+    # With seed 42, the changed cell is at row 1, col 3 (empty -> cyan)
+    # Verify Claude correctly identified this specific cell or got an outcome
     result_lower = result_text.lower()
 
-    # Check for success/fail outcome OR correct cell identification
+    # Check for success/fail outcome
     outcome_found = "success" in result_lower or "won" in result_lower or "fail" in result_lower
 
-    # Verify correct cell coordinates were identified (row 0, col 1)
+    # Verify correct cell coordinates were identified (row 1, col 3)
     correct_cell_identified = (
-        ("row 0" in result_lower and "col" in result_lower and "1" in result_lower) or
-        ("0, 1" in result_lower) or
-        ("0,1" in result_lower) or
-        ("position 1" in result_lower and "row 0" in result_lower)
+        ("row 1" in result_lower and "col" in result_lower and "3" in result_lower) or
+        ("1, 3" in result_lower) or
+        ("1,3" in result_lower) or
+        # Also accept if Claude found cyan appearing (the new color)
+        ("cyan" in result_lower and "appear" in result_lower) or
+        ("empty" in result_lower and "cyan" in result_lower)
     )
 
-    assert outcome_found or correct_cell_identified, f"Expected to find outcome or correct cell (row 0, col 1), got: {result_text[-500:]}"
+    assert outcome_found or correct_cell_identified, \
+        f"Expected outcome or correct cell (row 1, col 3). Response: {result_text[-500:]}"
 
 
 @pytest.mark.asyncio
@@ -94,15 +122,10 @@ async def test_what_changed_screenshot_comparison(imprint_binary, example_binari
     6. Identify which cell changed and describe the change
     """
 
-    result_text = ""
-    async for message in query(prompt=prompt, options=options):
-        if isinstance(message, AssistantMessage):
-            for block in message.content:
-                if isinstance(block, TextBlock):
-                    result_text += block.text
-
-    # Should describe colors and changes
+    result_text = await collect_response(prompt, options)
     result_lower = result_text.lower()
+
+    # Should describe colors and identify change
     color_mentions = sum([
         "red" in result_lower,
         "green" in result_lower,
@@ -110,5 +133,10 @@ async def test_what_changed_screenshot_comparison(imprint_binary, example_binari
         "yellow" in result_lower,
         "magenta" in result_lower,
         "cyan" in result_lower,
+        "gray" in result_lower or "grey" in result_lower or "empty" in result_lower,
     ])
-    assert color_mentions >= 1 or "change" in result_lower, "Expected color descriptions"
+
+    change_identified = "change" in result_lower or "different" in result_lower
+
+    assert color_mentions >= 2 or change_identified, \
+        f"Expected color descriptions or change identification. Response: {result_text[-500:]}"

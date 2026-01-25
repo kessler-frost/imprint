@@ -9,8 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var seed int64
-
 type GamePhase int
 
 const (
@@ -44,7 +42,9 @@ type model struct {
 	height     int
 }
 
-func NewModel() model {
+// NewModel creates a new game model with the given random seed.
+// If seed is 0, the current time is used for randomization.
+func NewModel(seed int64) model {
 	if seed != 0 {
 		rand.Seed(seed)
 	} else {
