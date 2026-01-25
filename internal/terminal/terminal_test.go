@@ -94,7 +94,7 @@ func testTypeAfterCommandExecution(t *testing.T) {
 // testTypeUnicode verifies Type() handles Unicode correctly.
 // The term.input() API must preserve multi-byte characters.
 func testTypeUnicode(t *testing.T) {
-	if err := testTerminal.Type("echo '哎呀屌你好打死你'"); err != nil {
+	if err := testTerminal.Type("echo '🚀'"); err != nil {
 		t.Fatalf("Type(unicode) failed: %v", err)
 	}
 	if err := testTerminal.SendKey("enter"); err != nil {
@@ -106,7 +106,7 @@ func testTypeUnicode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetText() failed: %v", err)
 	}
-	if !strings.Contains(screen, "哎呀屌你好打死你") {
+	if !strings.Contains(screen, "🚀") {
 		t.Errorf("Unicode output not found. Screen:\n%s", screen)
 	}
 }
