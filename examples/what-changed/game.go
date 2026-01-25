@@ -9,6 +9,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var seed int64
+
 type GamePhase int
 
 const (
@@ -43,7 +45,11 @@ type model struct {
 }
 
 func NewModel() model {
-	rand.Seed(time.Now().UnixNano())
+	if seed != 0 {
+		rand.Seed(seed)
+	} else {
+		rand.Seed(time.Now().UnixNano())
+	}
 
 	gridSize := 4
 	cells := make([]Cell, gridSize*gridSize)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -10,6 +11,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+var seed = flag.Int64("seed", 0, "Random seed (0=time-based)")
 
 // Color palette for random selection
 var colorPalette = []lipgloss.Color{
@@ -29,7 +32,11 @@ type model struct {
 }
 
 func initialModel() model {
-	rand.Seed(time.Now().UnixNano())
+	if *seed != 0 {
+		rand.Seed(*seed)
+	} else {
+		rand.Seed(time.Now().UnixNano())
+	}
 	m := model{
 		selected: 0,
 		width:    50,
@@ -167,6 +174,7 @@ func (m model) View() string {
 }
 
 func main() {
+	flag.Parse()
 	p := tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v", err)

@@ -148,6 +148,31 @@ A simple text-based TUI using ASCII characters. Good for testing `get_screen_tex
 ### what-changed
 A visual memory game designed to showcase imprint's screenshot capabilities. The game displays a grid of colored cells, then changes one cell - the player must identify which cell changed. Perfect for testing an AI agent's ability to detect visual differences between screenshots.
 
+## Testing
+
+### Unit Tests (Go)
+
+```bash
+go test ./...
+```
+
+### End-to-End Tests (Python)
+
+The `tests/` directory contains end-to-end tests that verify imprint works correctly with a real AI agent. These tests use the [Claude Code SDK](https://github.com/anthropics/claude-code-sdk) to spawn Claude, which then uses imprint's MCP tools to interact with the example TUIs.
+
+**Why Python?** The Claude Code SDK is only available in Python and TypeScript. Since the goal is to test imprint from an AI agent's perspective (not just unit test the Go code), we use the SDK to have Claude actually control the terminal and verify it can complete tasks like navigating menus, toggling checkboxes, and identifying visual bugs.
+
+```bash
+cd tests
+uv sync        # Install dependencies
+uv run pytest  # Run all tests
+```
+
+Individual test files:
+- `test_text_demo.py` - Tests text-based navigation and interaction
+- `test_screenshot_demo.py` - Tests visual bug detection via screenshots
+- `test_what_changed.py` - Tests screenshot comparison for the memory game
+
 ## Architecture
 
 ```mermaid
